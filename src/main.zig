@@ -24,26 +24,24 @@ pub fn main() !void {
     defer rl.CloseWindow();
 
     var camera: rl.Camera3D = undefined;
-    camera.position = rl.Vector3{ .x=-10.0, .y=20.0, .z=-10.0 }; // Camera position
+    camera.position = rl.Vector3{ .x=-10.0, .y=200.0, .z=-10.0 }; // Camera position
     camera.target = rl.Vector3{ .x=0.0, .y=0.0, .z=0.0 };      // Camera looking at point
     camera.up = rl.Vector3{ .x=0.0, .y=1.0, .z=0.0 };          // Camera up vector (rotation towards target)
     camera.fovy = 45.0;                                // Camera field-of-view Y
     camera.projection = rl.CAMERA_PERSPECTIVE;             // Camera projection type
-    c.generateQuads();
-    // tryinng this function for now
-    _ = try c.generateMeshCustom(rl.Vector3{.x = 16, .y = 255.0, .z = 16});
+    
+    try c.generateMesh(rl.Vector3{.x = 16, .y = 255.0, .z = 16});
+    // c.printVertices();
     
     while(!rl.WindowShouldClose()) {
         rl.BeginDrawing();
         defer rl.EndDrawing();
-        rl.ClearBackground(rl.RAYWHITE);
+        rl.ClearBackground(rl.BLACK);
 
         rl.BeginMode3D(camera);
         defer rl.EndMode3D();
 
-
-        c.renderQuads();
-        // c.renderMesh();
+        c.renderMesh();
         drawAxisLines();
     }
 }

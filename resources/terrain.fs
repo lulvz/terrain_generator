@@ -6,7 +6,7 @@ out vec4 finalColor;  // Output color of the fragment
 uniform sampler2D texture0; // Texture sampler
 
 void main() {
-    vec4 texColor = texture(texture0, fragPosition.xz / 128.0);
+    vec4 texColor = texture(texture0, fragPosition.xz / 16.0);
 
     // Set the final fragment color
     finalColor = texColor;

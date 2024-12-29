@@ -4,7 +4,7 @@ const rl = @import ("rl.zig");
 const MAX_HEIGHTMAP_VALUE = 255.0;
 
 // chunk width in terms of quads
-const CHUNK_SIZE: comptime_int = 128;
+const CHUNK_SIZE: comptime_int = 16;
 const CHUNK_SIZE_VERTICES: comptime_int = CHUNK_SIZE+1;
 const MAX_TRIANGLES = CHUNK_SIZE*CHUNK_SIZE*2;
 const MAX_INDICES = (CHUNK_SIZE_VERTICES - 1) * (CHUNK_SIZE_VERTICES - 1) * 6;
@@ -31,12 +31,14 @@ pub const Chunk = struct {
             .model = undefined,
         };
 
+        chunk.model = undefined;
+
         // Example height map with a gradient
-        for (0..CHUNK_SIZE_VERTICES) |x| {
-            for (0..CHUNK_SIZE_VERTICES) |z| {
-                chunk.height_map[x][z] = 10*@as(f32, @floatFromInt(x + z)) /  @as(f32, @floatFromInt(CHUNK_SIZE));
-            }
-        }
+        // for (0..CHUNK_SIZE_VERTICES) |x| {
+        //     for (0..CHUNK_SIZE_VERTICES) |z| {
+        //         chunk.height_map[x][z] = MAX_HEIGHTMAP_VALUE*@as(f32, @floatFromInt(x + z)) /  @as(f32, @floatFromInt(CHUNK_SIZE));
+        //     }
+        // }
 
         return chunk;
     }
@@ -170,7 +172,7 @@ pub const Chunk = struct {
 
     pub fn renderMesh(self: *Chunk) void {
         if (self.model.meshCount > 0) {
-            rl.DrawModel(self.model, self.wpos, 1.0, rl.PURPLE);
+            rl.DrawModel(self.model, self.wpos, 1.0, rl.WHITE);
         }
     }
 

@@ -14,39 +14,62 @@ fn drawAxisLines() void {
 }
 
 pub fn main() !void {
-    rl.InitWindow(800, 600, "raylib-zig [core] example - sprite sheet rendering");
+    rl.InitWindow(1920, 1080, "raylib-zig [core] example - sprite sheet rendering");
     defer rl.CloseWindow();
 
     var camera: rl.Camera3D = undefined;
-    camera.position = rl.Vector3{ .x=-10.0, .y=200.0, .z=-10.0 }; // Camera position
-    camera.target = rl.Vector3{ .x=128/2.0, .y=0.0, .z=128/2.0 };      // Camera looking at point
+    camera.position = rl.Vector3{ .x=-10.0, .y=2.0, .z=-10.0 }; // Camera position
+    camera.target = rl.Vector3{ .x=0, .y=10.0, .z=3 };      // Camera looking at point
     camera.up = rl.Vector3{ .x=0.0, .y=1.0, .z=0.0 };          // Camera up vector (rotation towards target)
-    camera.fovy = 45.0;                                // Camera field-of-view Y
+    camera.fovy = 75.0;                                // Camera field-of-view Y
     camera.projection = rl.CAMERA_PERSPECTIVE;             // Camera projection type
     
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
-    var c = chunk.Chunk.init(allocator, 0, 0);
-    defer c.deinit();
-    try c.generateMesh(rl.Vector3{.x = 128, .y = 255.0, .z = 128});
-    
+    // var c = chunk.Chunk.init(allocator, 0, 0);
+    // defer c.deinit();
+    // try c.generateMesh(rl.Vector3{.x = 128, .y = 255.0, .z = 128});
+
+    var chunk_array: [6*6]chunk.Chunk = undefined;
+    var chunk_index: usize = 0;
+    var x: i32 = -3;
+    while(x < 3) : (x+=1) {
+        var z: i32 = -3;
+        while(z < 3) : (z+=1) {
+            var c = chunk.Chunk.init(allocator, x, z);
+            try c.generateMesh(rl.Vector3{.x = 16, .y = 10, .z = 16});
+            chunk_array[chunk_index] = c;
+            chunk_index+=1;
+        }
+    }
+
+    // var lastTime = rl.GetTime();
     while(!rl.WindowShouldClose()) {
+        // const currentTime = rl.GetTime();
+        // const deltaTime = currentTime - lastTime;
+        // lastTime = currentTime;
+        // UPDATE THINGS
+        rl.UpdateCamera(&camera, rl.CAMERA_FIRST_PERSON);
+
         rl.BeginDrawing();
         defer rl.EndDrawing();
         rl.ClearBackground(rl.BLACK);
+ 
 
         rl.BeginMode3D(camera);
-        defer rl.EndMode3D();
 
-        c.renderMesh();
+        // c.renderMesh();
+        for(0..6*6) |i| {
+            chunk_array[i].renderMesh();
+        }
+
         drawAxisLines();
+        rl.EndMode3D();
+        rl.DrawFPS(10, 10);
     }
-}
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+    for(0..6*6) |i| {
+        chunk_array[i].deinit();
+    }
 }

@@ -15,23 +15,22 @@ fn drawAxisLines() void {
 }
 
 pub fn main() !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-    var c = chunk.Chunk.init(allocator, 0, 0);
-    defer c.deinit();
     rl.InitWindow(800, 600, "raylib-zig [core] example - sprite sheet rendering");
     defer rl.CloseWindow();
 
     var camera: rl.Camera3D = undefined;
     camera.position = rl.Vector3{ .x=-10.0, .y=200.0, .z=-10.0 }; // Camera position
-    camera.target = rl.Vector3{ .x=0.0, .y=0.0, .z=0.0 };      // Camera looking at point
+    camera.target = rl.Vector3{ .x=128/2.0, .y=0.0, .z=128/2.0 };      // Camera looking at point
     camera.up = rl.Vector3{ .x=0.0, .y=1.0, .z=0.0 };          // Camera up vector (rotation towards target)
     camera.fovy = 45.0;                                // Camera field-of-view Y
     camera.projection = rl.CAMERA_PERSPECTIVE;             // Camera projection type
     
-    try c.generateMesh(rl.Vector3{.x = 16, .y = 255.0, .z = 16});
-    // c.printVertices();
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+    var c = chunk.Chunk.init(allocator, 0, 0);
+    defer c.deinit();
+    try c.generateMesh(rl.Vector3{.x = 128, .y = 255.0, .z = 128});
     
     while(!rl.WindowShouldClose()) {
         rl.BeginDrawing();

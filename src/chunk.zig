@@ -4,7 +4,7 @@ const rl = @import ("rl.zig");
 const MAX_HEIGHTMAP_VALUE = 255.0;
 
 // chunk width in terms of quads
-const CHUNK_SIZE: comptime_int = 16;
+const CHUNK_SIZE: comptime_int = 128;
 const CHUNK_SIZE_VERTICES: comptime_int = CHUNK_SIZE+1;
 const MAX_TRIANGLES = CHUNK_SIZE*CHUNK_SIZE*2;
 const MAX_INDICES = (CHUNK_SIZE_VERTICES - 1) * (CHUNK_SIZE_VERTICES - 1) * 6;
@@ -13,6 +13,7 @@ pub const Chunk = struct {
     allocator: std.mem.Allocator,
     wx: i32,
     wz: i32,
+    wpos: rl.Vector3,
     height_map: [CHUNK_SIZE_VERTICES][CHUNK_SIZE_VERTICES]f32, // TODO make this load from this file: chunk_%d_%d.bin
     model: rl.Model,
 
@@ -21,6 +22,11 @@ pub const Chunk = struct {
             .allocator = allocator,
             .wx = wx,
             .wz = wz,
+            .wpos = rl.Vector3{
+                .x = @floatFromInt(wx * CHUNK_SIZE),
+                .y = 0.0,
+                .z = @floatFromInt(wz * CHUNK_SIZE),
+            },
             .height_map = std.mem.zeroes([CHUNK_SIZE_VERTICES][CHUNK_SIZE_VERTICES]f32),
             .model = undefined,
         };
@@ -28,7 +34,7 @@ pub const Chunk = struct {
         // Example height map with a gradient
         for (0..CHUNK_SIZE_VERTICES) |x| {
             for (0..CHUNK_SIZE_VERTICES) |z| {
-                chunk.height_map[x][z] = 1*@as(f32, @floatFromInt(x + z)) /  @as(f32, @floatFromInt(CHUNK_SIZE));
+                chunk.height_map[x][z] = 10*@as(f32, @floatFromInt(x + z)) /  @as(f32, @floatFromInt(CHUNK_SIZE));
             }
         }
 
@@ -42,11 +48,11 @@ pub const Chunk = struct {
         mesh.vertexCount = MAX_TRIANGLES*3;
 
         // Allocate memory for vertices (3 floats per vertex: x,y,z)
-        mesh.vertices = (try self.allocator.alloc(f32, MAX_TRIANGLES*3 * 3)).ptr;
+        mesh.vertices = (try self.allocator.alloc(f32, @intCast(mesh.vertexCount*3))).ptr;
         // Allocate memory for normals (3 floats per normal: x,y,z)
-        mesh.normals = (try self.allocator.alloc(f32, MAX_TRIANGLES*3 * 3)).ptr;
+        mesh.normals = (try self.allocator.alloc(f32, @intCast(mesh.vertexCount*3))).ptr;
         // Allocate memory for texture coordinates (2 floats per vertex: u,v)
-        mesh.texcoords = (try self.allocator.alloc(f32, MAX_TRIANGLES*3 * 2)).ptr;
+        mesh.texcoords = (try self.allocator.alloc(f32, @intCast(mesh.vertexCount*2))).ptr;
         mesh.colors = null;
 
         var vCounter: usize = 0;
@@ -146,25 +152,38 @@ pub const Chunk = struct {
             }
         }
         rl.UploadMesh(&mesh, false);
-        self.model = rl.LoadModelFromMesh(mesh);
+
+        var model: rl.Model = .{};
+
+        model.transform = rl.MatrixIdentity();
+        model.meshCount = 1;
+        model.meshes = (try self.allocator.alloc(rl.Mesh, 1)).ptr;
+        model.meshes[0] = mesh;
+
+        model.materialCount = 1;
+        model.materials = (try self.allocator.alloc(rl.Material, 1)).ptr;
+        model.materials[0] = rl.LoadMaterialDefault();
+
+        model.meshMaterial = (try self.allocator.alloc(i32, 1)).ptr;
+        model.meshMaterial[0] = 0;
+
+        self.model = model;
     }
 
     pub fn renderMesh(self: *Chunk) void {
         if (self.model.meshCount > 0) {
-            const position = rl.Vector3{
-                .x = @floatFromInt(self.wx * CHUNK_SIZE),
-                .y = 0,
-                .z = @floatFromInt(self.wz * CHUNK_SIZE),
-            };
-            rl.DrawModel(self.model, position, 1.0, rl.RED);
+            rl.DrawModel(self.model, self.wpos, 1.0, rl.PURPLE);
         }
     }
 
     pub fn deinit(self: *Chunk) void {
-        _=self;
-        // TODO DEINIT THE MESH
-        // we have to convert the c pointers back to slices to free them
-        // self.allocator.free(mesh.vertices[0..(MAX_VERTICES * 3)]);
-        return;
+        for(0..@intCast(self.model.meshCount)) |i| {
+            self.allocator.free(self.model.meshes[i].vertices[0..@intCast(self.model.meshes[i].vertexCount*3)]);
+            self.allocator.free(self.model.meshes[i].normals[0..@intCast(self.model.meshes[i].vertexCount*3)]);
+            self.allocator.free(self.model.meshes[i].texcoords[0..@intCast(self.model.meshes[i].vertexCount*2)]);
+        }
+        self.allocator.free(self.model.materials[0..@intCast(self.model.materialCount)]);
+        self.allocator.free(self.model.meshMaterial[0..@intCast(self.model.meshCount)]);
+        self.allocator.free(self.model.meshes[0..@intCast(self.model.meshCount)]);
     }
 };

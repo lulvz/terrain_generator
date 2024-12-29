@@ -48,21 +48,28 @@ pub const Chunk = struct {
         mesh.vertexCount = MAX_TRIANGLES*3;
 
         // Allocate memory for vertices (3 floats per vertex: x,y,z)
-        mesh.vertices = (try self.allocator.alloc(f32, @intCast(mesh.vertexCount*3))).ptr;
-        // Allocate memory for normals (3 floats per normal: x,y,z)
-        mesh.normals = (try self.allocator.alloc(f32, @intCast(mesh.vertexCount*3))).ptr;
-        // Allocate memory for texture coordinates (2 floats per vertex: u,v)
-        mesh.texcoords = (try self.allocator.alloc(f32, @intCast(mesh.vertexCount*2))).ptr;
+        // mesh.vertices = (try self.allocator.alloc(f32, @intCast(mesh.vertexCount*3))).ptr;
+        // // Allocate memory for normals (3 floats per normal: x,y,z)
+        // mesh.normals = (try self.allocator.alloc(f32, @intCast(mesh.vertexCount*3))).ptr;
+        // // Allocate memory for texture coordinates (2 floats per vertex: u,v)
+        // mesh.texcoords = (try self.allocator.alloc(f32, @intCast(mesh.vertexCount*2))).ptr;
+        
+        // mesh.vertices = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
+        // mesh.normals = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
+        // mesh.texcoords = (float *)RL_MALLOC(mesh.vertexCount*2*sizeof(float));
+        mesh.vertices = @ptrCast(@alignCast(rl.RL_MALLOC(@as(c_ulong, @intCast(mesh.vertexCount*3*@sizeOf(f32))))));
+        // mesh.normals = @ptrCast(@alignCast(rl.RL_MALLOC(@as(c_ulong, @intCast(mesh.vertexCount*3*@sizeOf(f32))))));
+        // mesh.texcoords = @ptrCast(@alignCast(rl.RL_MALLOC(@as(c_ulong, @intCast(mesh.vertexCount*2*@sizeOf(f32))))));
         mesh.colors = null;
 
         var vCounter: usize = 0;
-        var tcCounter: usize = 0;
-        var nCounter: usize = 0;
+        // var tcCounter: usize = 0;
+        // var nCounter: usize = 0;
 
-        var vA: rl.Vector3 = .{.x=0,.y=0,.z=0};
-        var vB: rl.Vector3 = .{.x=0,.y=0,.z=0};
-        var vC: rl.Vector3 = .{.x=0,.y=0,.z=0};
-        var vN: rl.Vector3 = .{.x=0,.y=0,.z=0};
+        // var vA: rl.Vector3 = .{.x=0,.y=0,.z=0};
+        // var vB: rl.Vector3 = .{.x=0,.y=0,.z=0};
+        // var vC: rl.Vector3 = .{.x=0,.y=0,.z=0};
+        // var vN: rl.Vector3 = .{.x=0,.y=0,.z=0};
 
         const scaleFactor: rl.Vector3 = .{ .x = size.x/CHUNK_SIZE, .y = size.y/MAX_HEIGHTMAP_VALUE, .z = size.z/CHUNK_SIZE };
 
@@ -99,75 +106,66 @@ pub const Chunk = struct {
                 
                 // Fill texcoords array with data
                 //--------------------------------------------------------------
-                mesh.texcoords[tcCounter] = @as(f32, @floatFromInt(x))/(CHUNK_SIZE);
-                mesh.texcoords[tcCounter + 1] = @as(f32, @floatFromInt(z))/(CHUNK_SIZE);
+                // mesh.texcoords[tcCounter] = @as(f32, @floatFromInt(x))/(CHUNK_SIZE);
+                // mesh.texcoords[tcCounter + 1] = @as(f32, @floatFromInt(z))/(CHUNK_SIZE);
 
-                mesh.texcoords[tcCounter + 2] = @as(f32, @floatFromInt(x))/(CHUNK_SIZE);
-                mesh.texcoords[tcCounter + 3] = @as(f32, @floatFromInt(z + 1))/(CHUNK_SIZE);
+                // mesh.texcoords[tcCounter + 2] = @as(f32, @floatFromInt(x))/(CHUNK_SIZE);
+                // mesh.texcoords[tcCounter + 3] = @as(f32, @floatFromInt(z + 1))/(CHUNK_SIZE);
 
-                mesh.texcoords[tcCounter + 4] = @as(f32, @floatFromInt(x + 1))/(CHUNK_SIZE);
-                mesh.texcoords[tcCounter + 5] = @as(f32, @floatFromInt(z))/(CHUNK_SIZE);
+                // mesh.texcoords[tcCounter + 4] = @as(f32, @floatFromInt(x + 1))/(CHUNK_SIZE);
+                // mesh.texcoords[tcCounter + 5] = @as(f32, @floatFromInt(z))/(CHUNK_SIZE);
 
-                mesh.texcoords[tcCounter + 6] = mesh.texcoords[tcCounter + 4];
-                mesh.texcoords[tcCounter + 7] = mesh.texcoords[tcCounter + 5];
+                // mesh.texcoords[tcCounter + 6] = mesh.texcoords[tcCounter + 4];
+                // mesh.texcoords[tcCounter + 7] = mesh.texcoords[tcCounter + 5];
 
-                mesh.texcoords[tcCounter + 8] = mesh.texcoords[tcCounter + 2];
-                mesh.texcoords[tcCounter + 9] = mesh.texcoords[tcCounter + 3];
+                // mesh.texcoords[tcCounter + 8] = mesh.texcoords[tcCounter + 2];
+                // mesh.texcoords[tcCounter + 9] = mesh.texcoords[tcCounter + 3];
 
-                mesh.texcoords[tcCounter + 10] = @as(f32, @floatFromInt(x + 1))/(CHUNK_SIZE);
-                mesh.texcoords[tcCounter + 11] = @as(f32, @floatFromInt(z + 1))/(CHUNK_SIZE);
-                tcCounter += 12;    // 6 texcoords, 12 floats
+                // mesh.texcoords[tcCounter + 10] = @as(f32, @floatFromInt(x + 1))/(CHUNK_SIZE);
+                // mesh.texcoords[tcCounter + 11] = @as(f32, @floatFromInt(z + 1))/(CHUNK_SIZE);
+                // tcCounter += 12;    // 6 texcoords, 12 floats
 
                 // Fill normals array with data
                 //--------------------------------------------------------------
-                var i: usize = 0;
-                while(i<18) : (i+=9) {
-                    vA.x = mesh.vertices[nCounter + i];
-                    vA.y = mesh.vertices[nCounter + i + 1];
-                    vA.z = mesh.vertices[nCounter + i + 2];
+                // var i: usize = 0;
+                // while(i<18) : (i+=9) {
+                //     vA.x = mesh.vertices[nCounter + i];
+                //     vA.y = mesh.vertices[nCounter + i + 1];
+                //     vA.z = mesh.vertices[nCounter + i + 2];
 
-                    vB.x = mesh.vertices[nCounter + i + 3];
-                    vB.y = mesh.vertices[nCounter + i + 4];
-                    vB.z = mesh.vertices[nCounter + i + 5];
+                //     vB.x = mesh.vertices[nCounter + i + 3];
+                //     vB.y = mesh.vertices[nCounter + i + 4];
+                //     vB.z = mesh.vertices[nCounter + i + 5];
 
-                    vC.x = mesh.vertices[nCounter + i + 6];
-                    vC.y = mesh.vertices[nCounter + i + 7];
-                    vC.z = mesh.vertices[nCounter + i + 8];
+                //     vC.x = mesh.vertices[nCounter + i + 6];
+                //     vC.y = mesh.vertices[nCounter + i + 7];
+                //     vC.z = mesh.vertices[nCounter + i + 8];
 
-                    vN = rl.Vector3Normalize(rl.Vector3CrossProduct(rl.Vector3Subtract(vB, vA), rl.Vector3Subtract(vC, vA)));
+                //     vN = rl.Vector3Normalize(rl.Vector3CrossProduct(rl.Vector3Subtract(vB, vA), rl.Vector3Subtract(vC, vA)));
 
-                    mesh.normals[nCounter + i] = vN.x;
-                    mesh.normals[nCounter + i + 1] = vN.y;
-                    mesh.normals[nCounter + i + 2] = vN.z;
+                //     mesh.normals[nCounter + i] = vN.x;
+                //     mesh.normals[nCounter + i + 1] = vN.y;
+                //     mesh.normals[nCounter + i + 2] = vN.z;
 
-                    mesh.normals[nCounter + i + 3] = vN.x;
-                    mesh.normals[nCounter + i + 4] = vN.y;
-                    mesh.normals[nCounter + i + 5] = vN.z;
+                //     mesh.normals[nCounter + i + 3] = vN.x;
+                //     mesh.normals[nCounter + i + 4] = vN.y;
+                //     mesh.normals[nCounter + i + 5] = vN.z;
 
-                    mesh.normals[nCounter + i + 6] = vN.x;
-                    mesh.normals[nCounter + i + 7] = vN.y;
-                    mesh.normals[nCounter + i + 8] = vN.z;
-                }
-                nCounter += 18;     // 6 vertex, 18 floats
+                //     mesh.normals[nCounter + i + 6] = vN.x;
+                //     mesh.normals[nCounter + i + 7] = vN.y;
+                //     mesh.normals[nCounter + i + 8] = vN.z;
+                // }
+                // nCounter += 18;     // 6 vertex, 18 floats
             }
         }
         rl.UploadMesh(&mesh, false);
+        self.model = rl.LoadModelFromMesh(mesh);
 
-        var model: rl.Model = .{};
+        const shader = rl.LoadShader("resources/terrain.vs", "resources/terrain.fs");
+        self.model.materials[0].shader = shader;
 
-        model.transform = rl.MatrixIdentity();
-        model.meshCount = 1;
-        model.meshes = (try self.allocator.alloc(rl.Mesh, 1)).ptr;
-        model.meshes[0] = mesh;
-
-        model.materialCount = 1;
-        model.materials = (try self.allocator.alloc(rl.Material, 1)).ptr;
-        model.materials[0] = rl.LoadMaterialDefault();
-
-        model.meshMaterial = (try self.allocator.alloc(i32, 1)).ptr;
-        model.meshMaterial[0] = 0;
-
-        self.model = model;
+        const texture = rl.LoadTexture("dirt.png");
+        self.model.materials[0].maps[rl.MATERIAL_MAP_DIFFUSE].texture = texture;
     }
 
     pub fn renderMesh(self: *Chunk) void {
@@ -177,13 +175,6 @@ pub const Chunk = struct {
     }
 
     pub fn deinit(self: *Chunk) void {
-        for(0..@intCast(self.model.meshCount)) |i| {
-            self.allocator.free(self.model.meshes[i].vertices[0..@intCast(self.model.meshes[i].vertexCount*3)]);
-            self.allocator.free(self.model.meshes[i].normals[0..@intCast(self.model.meshes[i].vertexCount*3)]);
-            self.allocator.free(self.model.meshes[i].texcoords[0..@intCast(self.model.meshes[i].vertexCount*2)]);
-        }
-        self.allocator.free(self.model.materials[0..@intCast(self.model.materialCount)]);
-        self.allocator.free(self.model.meshMaterial[0..@intCast(self.model.meshCount)]);
-        self.allocator.free(self.model.meshes[0..@intCast(self.model.meshCount)]);
+        rl.UnloadModel(self.model);
     }
 };

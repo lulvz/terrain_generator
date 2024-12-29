@@ -21,6 +21,7 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.linkLibrary(raylib.artifact("raylib"));
+    exe.linkLibC();
 
     b.installArtifact(exe);
 

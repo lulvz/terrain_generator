@@ -1,6 +1,5 @@
 const std = @import("std");
 const rl = @import("rl.zig");
-
 const chunk = @import("chunk.zig");
 
 fn drawAxisLines() void {

@@ -14,7 +14,7 @@ fn drawAxisLines() void {
 }
 
 pub fn main() !void {
-    rl.InitWindow(1920, 1080, "raylib-zig [core] example - sprite sheet rendering");
+    rl.InitWindow(1600, 900, "raylib-zig [core] example - sprite sheet rendering");
     defer rl.CloseWindow();
 
     var camera: rl.Camera3D = undefined;

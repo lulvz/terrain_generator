@@ -2,6 +2,8 @@ const std = @import("std");
 const rl = @import("rl.zig");
 const chunk = @import("chunk.zig");
 
+const CHUNK_AMOUNT = 20;
+
 fn drawAxisLines() void {
     const origin = rl.Vector3{ .x = 0.0, .y = 0.0, .z = 0.0 };
     const x_end = rl.Vector3{ .x = 10.0, .y = 0.0, .z = 0.0 };
@@ -31,15 +33,16 @@ pub fn main() !void {
     // defer c.deinit();
     // try c.generateMesh(rl.Vector3{.x = 128, .y = 255.0, .z = 128});
 
-    var chunk_array: [6*6]chunk.Chunk = undefined;
+    var chunk_array: [CHUNK_AMOUNT*2*CHUNK_AMOUNT*2]chunk.Chunk = undefined;
     var chunk_index: usize = 0;
-    var x: i32 = -3;
-    while(x < 3) : (x+=1) {
-        var z: i32 = -3;
-        while(z < 3) : (z+=1) {
+    var x: i32 = -CHUNK_AMOUNT;
+    while(x < CHUNK_AMOUNT) : (x+=1) {
+        var z: i32 = -CHUNK_AMOUNT;
+        while(z < CHUNK_AMOUNT) : (z+=1) {
             var c = chunk.Chunk.init(allocator, x, z);
             // try c.generateMesh(rl.Vector3{.x = 16, .y = 10, .z = 16});
-            try c.generateMeshOptimized();
+            // try c.generateMeshOptimized();
+            try c.generateMeshOptimizedCustom();
             chunk_array[chunk_index] = c;
             chunk_index+=1;
         }
@@ -57,12 +60,12 @@ pub fn main() !void {
         defer rl.EndDrawing();
         rl.ClearBackground(rl.BLACK);
  
-
         rl.BeginMode3D(camera);
 
         // c.renderMesh();
-        for(0..6*6) |i| {
-            chunk_array[i].renderMesh();
+        for(0..CHUNK_AMOUNT*2*CHUNK_AMOUNT*2) |i| {
+            // chunk_array[i].renderMesh();
+            chunk_array[i].renderCustomMesh();
         }
 
         drawAxisLines();
@@ -70,7 +73,7 @@ pub fn main() !void {
         rl.DrawFPS(10, 10);
     }
 
-    for(0..6*6) |i| {
+    for(0..CHUNK_AMOUNT*2*CHUNK_AMOUNT*2) |i| {
         chunk_array[i].deinit();
     }
 }

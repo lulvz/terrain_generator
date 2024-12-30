@@ -1,8 +1,10 @@
 #version 330 core
 
 layout(location = 0) in float vertexHeight; // Input height for each vertex
+in vec2 vertexTexCoord;
 
 out vec3 fragPosition; // Pass to the fragment shader
+out vec2 fragTexCoord;
 
 uniform mat4 mvp;
 float gridSize = 16.0; // CHUNK_SIZE_VERTICES
@@ -40,5 +42,6 @@ void main() {
     vec3 vertexPosition = vec3(x, vertexHeight, z);
 
     fragPosition = vertexPosition; // Pass the vertex position to the fragment shader
+    fragTexCoord = vertexTexCoord;
     gl_Position = mvp * vec4(vertexPosition, 1.0);
 }

@@ -1,6 +1,6 @@
 const std = @import("std");
 const rl = @import ("rl.zig");
-const gl = @import("gl");
+// const gl = @import("gl");
 
 const MAX_HEIGHTMAP_VALUE = 255.0;
 
@@ -55,158 +55,64 @@ pub const Chunk = struct {
     }
 
 
-    // pub fn generateMeshOptimized(self: *Chunk, size: rl.Vector3) !void {
-    //     const heightMapSize = CHUNK_SIZE_VERTICES * CHUNK_SIZE_VERTICES;
-    //     // Allocate height map buffer
-    //     var heightData = self.allocator.alloc(f32, heightMapSize) catch return error.OutOfMemory;
-    //     var index: usize = 0;
-    //     for (self.height_map) |row| {
-    //         for (row) |value| {
-    //             heightData[index] = value;
-    //             index += 1;
-    //         }
-    //     }
-    //     // Create a VBO and upload the height data
-    //     var vboId: u32 = 0;
-    //     rl.(1, &vboId);
-    //     rl.glBindBuffer(rl.GL_ARRAY_BUFFER, vboId);
-    //     rl.glBufferData(rl.GL_ARRAY_BUFFER, heightData.len * @sizeOf(f32), heightData.ptr, rl.GL_STATIC_DRAW);
-    //     rl.glBindBuffer(rl.GL_ARRAY_BUFFER, 0);
+    pub fn generateMeshOptimized(self: *Chunk) !void {
+        var heights: [MAX_TRIANGLES*3]f32 = std.mem.zeroes([MAX_TRIANGLES*3]f32);
+        var vCounter: usize = 0;
+        var x: usize = 0;
+        while(x < CHUNK_SIZE_VERTICES-1) : (x+=1) {
+            var z: usize = 0;
+            while(z < CHUNK_SIZE_VERTICES-1) : (z+=1) {
+                // one triangle - 3 heights
+                heights[vCounter] = self.height_map[x][z];
 
-    //     self.model = rl.LoadModel(""); // Load an empty model
-    //     self.model.meshCount = 1;
-    //     self.model.meshes = std.mem.alloc(self.allocator, rl.Mesh, 1) catch return error.OutOfMemory;
-    //     self.model.meshes[0] = .{
-    //         .vaoId = vboId,
-    //     };
+                heights[vCounter + 1] = self.height_map[x][z+1];
 
-    //     self.allocator.free(heightData);
+                heights[vCounter + 2] = self.height_map[x+1][z];
 
-    //     var mesh: rl.Mesh = .{};
+                // Another triangle - 3 heghts 
+                heights[vCounter + 3] = self.height_map[x+1][z];
 
-    //     mesh.triangleCount = MAX_TRIANGLES;
-    //     mesh.vertexCount = MAX_TRIANGLES*3;
+                heights[vCounter + 4] = self.height_map[x][z+1];
 
-    //     mesh.vertices = @ptrCast(@alignCast(rl.RL_MALLOC(@as(c_ulong, @intCast(mesh.vertexCount*3*@sizeOf(f32))))));
-    //     // mesh.normals = @ptrCast(@alignCast(rl.RL_MALLOC(@as(c_ulong, @intCast(mesh.vertexCount*3*@sizeOf(f32))))));
-    //     mesh.texcoords = @ptrCast(@alignCast(rl.RL_MALLOC(@as(c_ulong, @intCast(mesh.vertexCount*2*@sizeOf(f32))))));
-    //     mesh.colors = null;
+                heights[vCounter + 5] = self.height_map[x+1][z+1];
+                vCounter += 6;
+            }
+        }
 
-    //     var vCounter: usize = 0;
-    //     var tcCounter: usize = 0;
-    //     // var nCounter: usize = 0;
+        var VAO: [1]c_uint = undefined;
+        var VBO: [1]c_uint = undefined;
 
-    //     // var vA: rl.Vector3 = .{.x=0,.y=0,.z=0};
-    //     // var vB: rl.Vector3 = .{.x=0,.y=0,.z=0};
-    //     // var vC: rl.Vector3 = .{.x=0,.y=0,.z=0};
-    //     // var vN: rl.Vector3 = .{.x=0,.y=0,.z=0};
+        rl.glGenVertexArrays(1, &VAO);
+        rl.glGenBuffers(1, &VBO);
 
-    //     const scaleFactor: rl.Vector3 = .{ .x = size.x/CHUNK_SIZE, .y = size.y/MAX_HEIGHTMAP_VALUE, .z = size.z/CHUNK_SIZE };
+        rl.glBindVertexArray(VAO[0]);
 
-    //     var x: usize = 0;
-    //     while(x < CHUNK_SIZE_VERTICES-1) : (x+=1) {
-    //         var z: usize = 0;
-    //         while(z < CHUNK_SIZE_VERTICES-1) : (z+=1) {
-    //             // one triangle - 3 vertex
-    //             mesh.vertices[vCounter] = @as(f32, @floatFromInt(x))*scaleFactor.x;
-    //             mesh.vertices[vCounter + 1] = self.height_map[x][z]*scaleFactor.y;
-    //             mesh.vertices[vCounter + 2] = @as(f32, @floatFromInt(z))*scaleFactor.z;
+        rl.glBindBuffer(rl.GL_ARRAY_BUFFER, VBO[0]);
+        rl.glBufferData(rl.GL_ARRAY_BUFFER, @sizeOf([MAX_TRIANGLES*3]f32), &heights, rl.GL_STATIC_DRAW);
 
-    //             mesh.vertices[vCounter + 3] = @as(f32, @floatFromInt(x))*scaleFactor.x;
-    //             mesh.vertices[vCounter + 4] = self.height_map[x][z+1]*scaleFactor.y;
-    //             mesh.vertices[vCounter + 5] = @as(f32, @floatFromInt(z+1))*scaleFactor.z;
+        rl.glVertexAttribPointer(0, 1, rl.GL_FLOAT, rl.GL_FALSE, @sizeOf(f32), null);
+        rl.glEnableVertexAttribArray(0);
 
-    //             mesh.vertices[vCounter + 6] = @as(f32, @floatFromInt(x+1))*scaleFactor.x;
-    //             mesh.vertices[vCounter + 7] = self.height_map[x+1][z]*scaleFactor.y;
-    //             mesh.vertices[vCounter + 8] = @as(f32, @floatFromInt(z))*scaleFactor.z;
+        rl.glBindVertexArray(0);
 
-    //             // Another triangle - 3 vertex
-    //             mesh.vertices[vCounter + 9] = mesh.vertices[vCounter + 6];
-    //             mesh.vertices[vCounter + 10] = mesh.vertices[vCounter + 7];
-    //             mesh.vertices[vCounter + 11] = mesh.vertices[vCounter + 8];
+        var mesh: rl.Mesh = .{
+            .vaoId = VAO[0],
+            .vboId = VBO[0],
+            .triangleCount = MAX_TRIANGLES,
+            .vertexCount = MAX_TRIANGLES*3,
+            .colors = null,
+        };
 
-    //             mesh.vertices[vCounter + 12] = mesh.vertices[vCounter + 3];
-    //             mesh.vertices[vCounter + 13] = mesh.vertices[vCounter + 4];
-    //             mesh.vertices[vCounter + 14] = mesh.vertices[vCounter + 5];
+        rl.UploadMesh(&mesh, false);
+        self.model = rl.LoadModelFromMesh(mesh);
 
-    //             mesh.vertices[vCounter + 15] = @as(f32, @floatFromInt(x+1))*scaleFactor.x;
-    //             mesh.vertices[vCounter + 16] = self.height_map[x+1][z+1]*scaleFactor.y;
-    //             mesh.vertices[vCounter + 17] = @as(f32, @floatFromInt(z+1))*scaleFactor.z;
-    //             vCounter += 18;     // 6 vertex, 18 floats
-                
-    //             // Fill texcoords array with data
-    //             // --------------------------------------------------------------
-    //             const uvTileSize = 1.0 / @as(f32, TILE_MAP_SIZE);
+        const shader = rl.LoadShader("resources/terrain.vs", "resources/terrain.fs");
+        self.model.materials[0].shader = shader;
 
-    //             // Compute the UV base offset for the tile at (x, z)
-    //             const tileIndex = self.tile_map[x][z];
-    //             const uvXBase = @as(f32, @floatFromInt(tileIndex % TILE_MAP_SIZE)) * uvTileSize;
-    //             const uvYBase = @as(f32, @floatFromInt(tileIndex / TILE_MAP_SIZE)) * uvTileSize;
+        const texture = rl.LoadTexture("atlas_2x2.png");
+        self.model.materials[0].maps[rl.MATERIAL_MAP_DIFFUSE].texture = texture;
+    }
 
-    //             // THID METHOD GETS MAX 1800 MIN 1150 FPS
-    //             // Fill texcoords array with adjusted UV coordinates
-    //             mesh.texcoords[tcCounter] = uvXBase;
-    //             mesh.texcoords[tcCounter + 1] = uvYBase;
-
-    //             mesh.texcoords[tcCounter + 2] = uvXBase;
-    //             mesh.texcoords[tcCounter + 3] = uvYBase + uvTileSize;
-
-    //             mesh.texcoords[tcCounter + 4] = uvXBase + uvTileSize;
-    //             mesh.texcoords[tcCounter + 5] = uvYBase;
-
-    //             mesh.texcoords[tcCounter + 6] = mesh.texcoords[tcCounter + 4];
-    //             mesh.texcoords[tcCounter + 7] = mesh.texcoords[tcCounter + 5];
-
-    //             mesh.texcoords[tcCounter + 8] = mesh.texcoords[tcCounter + 2];
-    //             mesh.texcoords[tcCounter + 9] = mesh.texcoords[tcCounter + 3];
-
-    //             mesh.texcoords[tcCounter + 10] = uvXBase + uvTileSize;
-    //             mesh.texcoords[tcCounter + 11] = uvYBase + uvTileSize;
-    //             tcCounter += 12; // 6 texcoords, 12 floats
-                
-    //             // Fill normals array with data
-    //             //--------------------------------------------------------------
-    //             // var i: usize = 0;
-    //             // while(i<18) : (i+=9) {
-    //             //     vA.x = mesh.vertices[nCounter + i];
-    //             //     vA.y = mesh.vertices[nCounter + i + 1];
-    //             //     vA.z = mesh.vertices[nCounter + i + 2];
-
-    //             //     vB.x = mesh.vertices[nCounter + i + 3];
-    //             //     vB.y = mesh.vertices[nCounter + i + 4];
-    //             //     vB.z = mesh.vertices[nCounter + i + 5];
-
-    //             //     vC.x = mesh.vertices[nCounter + i + 6];
-    //             //     vC.y = mesh.vertices[nCounter + i + 7];
-    //             //     vC.z = mesh.vertices[nCounter + i + 8];
-
-    //             //     vN = rl.Vector3Normalize(rl.Vector3CrossProduct(rl.Vector3Subtract(vB, vA), rl.Vector3Subtract(vC, vA)));
-
-    //             //     mesh.normals[nCounter + i] = vN.x;
-    //             //     mesh.normals[nCounter + i + 1] = vN.y;
-    //             //     mesh.normals[nCounter + i + 2] = vN.z;
-
-    //             //     mesh.normals[nCounter + i + 3] = vN.x;
-    //             //     mesh.normals[nCounter + i + 4] = vN.y;
-    //             //     mesh.normals[nCounter + i + 5] = vN.z;
-
-    //             //     mesh.normals[nCounter + i + 6] = vN.x;
-    //             //     mesh.normals[nCounter + i + 7] = vN.y;
-    //             //     mesh.normals[nCounter + i + 8] = vN.z;
-    //             // }
-    //             // nCounter += 18;     // 6 vertex, 18 floats
-    //         }
-    //     }
-    //     rl.UploadMesh(&mesh, false);
-    //     self.model = rl.LoadModelFromMesh(mesh);
-
-    //     // const shader = rl.LoadShader("resources/terrain.vs", "resources/terrain.fs");
-    //     // self.model.materials[0].shader = shader;
-
-    //     const texture = rl.LoadTexture("atlas_2x2.png");
-    //     self.model.materials[0].maps[rl.MATERIAL_MAP_DIFFUSE].texture = texture;
-    // }
-    
     pub fn generateMesh(self: *Chunk, size: rl.Vector3) !void {
         var mesh: rl.Mesh = .{};
 

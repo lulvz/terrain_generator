@@ -38,7 +38,8 @@ pub fn main() !void {
         var z: i32 = -3;
         while(z < 3) : (z+=1) {
             var c = chunk.Chunk.init(allocator, x, z);
-            try c.generateMesh(rl.Vector3{.x = 16, .y = 10, .z = 16});
+            // try c.generateMesh(rl.Vector3{.x = 16, .y = 10, .z = 16});
+            try c.generateMeshOptimized();
             chunk_array[chunk_index] = c;
             chunk_index+=1;
         }

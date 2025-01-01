@@ -17,8 +17,6 @@ pub const ChunkManager = struct {
             .chunks = std.ArrayList(*Chunk).init(allocator),
         };
 
-        
-
         return c;
     }
 

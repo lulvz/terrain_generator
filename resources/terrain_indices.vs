@@ -5,12 +5,12 @@ out vec3 fragPosition;                         // Pass to the fragment shader
 // out vec2 vBary;
 uniform mat4 mvp;
 
-float gridSize = 16.0; // CHUNK_SIZE_VERTICES
+float gridSize = 64.0;
 float gridSpacing = 1.0; // Distance between vertices
 
 void main() {
-        // Calculate quad index and vertex within the quad
-    int quadIndex = gl_VertexID / 4; // Each quad has 6 vertices (2 triangles)
+    // Calculate quad index and vertex within the quad
+    int quadIndex = gl_VertexID / 4; // Each quad has 4 vertices
     int vertexInQuad = gl_VertexID % 4; // Vertex index within the quad
 
     // Extract grid x and z positions based on the quad layout
@@ -30,11 +30,11 @@ void main() {
         z = (floor(float(quadIndex) / (gridSize)) + 1.0) * gridSpacing;
     }
     // Unpack vertex information
-    uint height = uint(vertexInfo & 0xFF);
+    float heightf = float(vertexInfo & 0xFF);
     uint textureId = uint((vertexInfo >> 8) & 0xFFF);
     uint pitch = uint((vertexInfo >> 20) & 0x3F);
     uint yaw = uint((vertexInfo >> 26) & 0x3F);
-    float heightf = float(height);
+    // float heightf = float(height);
     
     // Calculate barycentric coordinates
     // int vertexInTriangle = gl_VertexID % 3; // Vertex index within the triangle

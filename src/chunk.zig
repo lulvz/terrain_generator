@@ -4,10 +4,11 @@ const rl = @import ("rl.zig");
 const MAX_HEIGHTMAP_VALUE = 255;
 
 // chunk width in terms of quads
-const CHUNK_SIZE: comptime_int = 16;
+const CHUNK_SIZE: comptime_int = 64;
 const CHUNK_SIZE_VERTICES: comptime_int = CHUNK_SIZE+1;
 const MAX_TRIANGLES = CHUNK_SIZE*CHUNK_SIZE*2;
-const MAX_INDICES = (CHUNK_SIZE_VERTICES - 1) * (CHUNK_SIZE_VERTICES - 1) * 6;
+const MAX_VERTICES = MAX_TRIANGLES*2;
+const MAX_INDICES = MAX_TRIANGLES*3;
 
 const ChunkMesh = struct {
     vao: c_uint,
@@ -28,7 +29,7 @@ const chunkVertexInformation = packed struct(u32) {
 const TILE_MAP_SIZE: comptime_int = 2;
 
 pub const Chunk = struct {
-        allocator: std.mem.Allocator,
+    allocator: std.mem.Allocator,
     wx: i32,
     wz: i32,
     wpos: rl.Vector3,
@@ -70,8 +71,8 @@ pub const Chunk = struct {
 
     // In generateMeshOptimizedCustomIndices:
     pub fn generateMeshOptimizedCustomIndices(self: *Chunk) !void {
-        var vertex_info: [MAX_TRIANGLES*2]u32 = undefined;
-        var indices: [MAX_TRIANGLES*3]u32 = undefined;        
+        var vertex_info: [MAX_VERTICES]u32 = undefined;
+        var indices: [MAX_INDICES]u32 = undefined;        
         var vCounter: usize = 0;
         var iCounter: usize = 0;
 

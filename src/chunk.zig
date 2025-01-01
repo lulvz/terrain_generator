@@ -1,7 +1,7 @@
 const std = @import("std");
 const rl = @import ("rl.zig");
 
-const MAX_HEIGHTMAP_VALUE = 255.0;
+const MAX_HEIGHTMAP_VALUE = 255;
 
 // chunk width in terms of quads
 const CHUNK_SIZE: comptime_int = 16;
@@ -12,10 +12,19 @@ const MAX_INDICES = (CHUNK_SIZE_VERTICES - 1) * (CHUNK_SIZE_VERTICES - 1) * 6;
 const ChunkMesh = struct {
     vao: c_uint,
     vbo: [2]c_uint,
+    ebo: c_uint,
     vertex_count: i32,
 };
 
-// amount of tiles per side in the tilemap
+// TODO MAKE THIS HOLD ALL THE INFORMATION FOR A SINGLE VERTEX
+const chunkVertexInformation = packed struct(u32) {
+    height: u8,
+    texture_id: u12, // total of 4096 textures in a 2048x2048 texture atlas
+    normal_pitch: u6,
+    normal_yaw: u6,
+};
+
+// amount of tiles per side in the tilemap HAS TO BE CHANGED
 const TILE_MAP_SIZE: comptime_int = 2;
 
 pub const Chunk = struct {
@@ -23,12 +32,13 @@ pub const Chunk = struct {
     wx: i32,
     wz: i32,
     wpos: rl.Vector3,
-    height_map: [CHUNK_SIZE_VERTICES][CHUNK_SIZE_VERTICES]f32, // TODO make this load from this file: chunk_%d_%d.bin
-    tile_map: [CHUNK_SIZE][CHUNK_SIZE]u8, // TODO CHECK IF THIS IS FINE
-    model: rl.Model,
+    height_map: [CHUNK_SIZE_VERTICES][CHUNK_SIZE_VERTICES]u8, // TODO make this load from this file: chunk_%d_%d.bin
+    tile_map: [CHUNK_SIZE][CHUNK_SIZE]u12,
     mesh: ChunkMesh,
     shader: rl.Shader,
     texture: rl.Texture,
+
+    packed_vertex_information: [CHUNK_SIZE_VERTICES*CHUNK_SIZE_VERTICES]u32,
 
     pub fn init(allocator: std.mem.Allocator, wx: i32, wz: i32) Chunk {
         var chunk = Chunk {
@@ -40,21 +50,20 @@ pub const Chunk = struct {
                 .y = 0.0,
                 .z = @floatFromInt(wz * CHUNK_SIZE),
             },
-            .height_map = std.mem.zeroes([CHUNK_SIZE_VERTICES][CHUNK_SIZE_VERTICES]f32),
-            .tile_map = std.mem.zeroes([CHUNK_SIZE][CHUNK_SIZE]u8),
-            .model = undefined,
+            .height_map = std.mem.zeroes([CHUNK_SIZE_VERTICES][CHUNK_SIZE_VERTICES]u8),
+            .tile_map = std.mem.zeroes([CHUNK_SIZE][CHUNK_SIZE]u12),
             .mesh = undefined,
             .shader = undefined,
             .texture = undefined,
+            .packed_vertex_information = undefined,
         };
 
-        const shader = rl.LoadShader("resources/terrain_strip.vs", "resources/terrain_strip.fs");
+        const shader = rl.LoadShader("resources/terrain_indices.vs", "resources/terrain_indices.fs");
         chunk.shader = shader;
 
         const texture = rl.LoadTexture("atlas_2x2.png");
         chunk.texture = texture;
 
-        chunk.model = undefined;
         for (0..CHUNK_SIZE) |x| {
             for (0..CHUNK_SIZE) |z| {
                 chunk.tile_map[x][z] = @intCast((x+z)%4);
@@ -62,12 +71,15 @@ pub const Chunk = struct {
             }
         } 
 
-        // Example height map with a gradient
-        // for (0..CHUNK_SIZE_VERTICES) |x| {
-        //     for (0..CHUNK_SIZE_VERTICES) |z| {
-        //         chunk.height_map[x][z] = MAX_HEIGHTMAP_VALUE*@as(f32, @floatFromInt(x + z)) /  @as(f32, @floatFromInt(CHUNK_SIZE));
-        //     }
-        // }
+        var x: usize = 0;
+
+        while (x < CHUNK_SIZE_VERTICES) : (x += 1) {
+            var z: usize = 0;
+            while (z < CHUNK_SIZE_VERTICES) : (z += 1) {
+                // Example: Using a simple calculation for the height map
+                chunk.height_map[x][z] = @intCast(x + z); // Ensure proper casting to u8
+            }
+        }
 
         return chunk;
     }
@@ -75,547 +87,161 @@ pub const Chunk = struct {
     const CustomMesh = struct {
         vao: c_uint,
         vbo: [2]c_uint,
+        ebo: c_uint,
         vertex_count: i32,
     };
 
-pub fn generateMeshOptimizedCustomStrip(self: *Chunk) !void {
-    // For a strip, we need (width + 1) * 2 vertices per row
-    const vertices_per_row = CHUNK_SIZE_VERTICES * 2;
-    const total_vertices = vertices_per_row * CHUNK_SIZE;
-    
-    var heights: [total_vertices]f32 = std.mem.zeroes([total_vertices]f32);
-    var texcoords: [total_vertices * 2]f32 = std.mem.zeroes([total_vertices * 2]f32);
-    var vCounter: usize = 0;
-    var tcCounter: usize = 0;
-
-    // Generate vertices row by row
-    var z: usize = 0;
-    while (z < CHUNK_SIZE_VERTICES - 1) : (z += 1) {
-        // For each column, generate two vertices (bottom and top)
-        var x: usize = 0;
-        while (x < CHUNK_SIZE_VERTICES) : (x += 1) {
-            // Bottom vertex
-            heights[vCounter] = self.height_map[x][z+1];
-            vCounter += 1;
-
-            // Top vertex
-            heights[vCounter] = self.height_map[x][z];
-            vCounter += 1;
-
-            // Texture coordinates calculation (corrected)
-            const uvTileSize = 1.0 / @as(f32, TILE_MAP_SIZE);
-            const tileIndex = if (x < CHUNK_SIZE and z < CHUNK_SIZE) 
-                self.tile_map[x][z] 
-            else 
-                self.tile_map[CHUNK_SIZE-1][CHUNK_SIZE-1];
-
-            const uvXBase = @as(f32, @floatFromInt(tileIndex % TILE_MAP_SIZE)) * uvTileSize;
-            const uvYBase = @as(f32, @floatFromInt(tileIndex / TILE_MAP_SIZE)) * uvTileSize;
-
-            // Bottom vertex UV
-            texcoords[tcCounter] = uvXBase + (@as(f32, @floatFromInt(x)) / @as(f32, @floatFromInt(CHUNK_SIZE_VERTICES))) * uvTileSize;
-            texcoords[tcCounter + 1] = uvYBase + uvTileSize - (@as(f32, @floatFromInt(z+1)) / @as(f32, @floatFromInt(CHUNK_SIZE_VERTICES))) * uvTileSize;
-            tcCounter += 2;
-
-            // Top vertex UV
-            texcoords[tcCounter] = uvXBase + (@as(f32, @floatFromInt(x)) / @as(f32, @floatFromInt(CHUNK_SIZE_VERTICES))) * uvTileSize;
-            texcoords[tcCounter + 1] = uvYBase + uvTileSize - (@as(f32, @floatFromInt(z)) / @as(f32, @floatFromInt(CHUNK_SIZE_VERTICES))) * uvTileSize;
-            tcCounter += 2;
-        }
-    }
-
-    var VAO: [1]c_uint = undefined;
-    var VBO: [2]c_uint = undefined;
-
-    rl.glGenVertexArrays(1, &VAO);
-    rl.glGenBuffers(2, &VBO);
-    rl.glBindVertexArray(VAO[0]);
-
-    // Buffer heights data
-    rl.glBindBuffer(rl.GL_ARRAY_BUFFER, VBO[0]);
-    rl.glBufferData(rl.GL_ARRAY_BUFFER, @sizeOf(@TypeOf(heights)), &heights, rl.GL_STATIC_DRAW);
-    rl.glVertexAttribPointer(0, 1, rl.GL_FLOAT, rl.GL_FALSE, @sizeOf(f32), null);
-    rl.glEnableVertexAttribArray(0);
-
-    // Buffer texcoords data
-    rl.glBindBuffer(rl.GL_ARRAY_BUFFER, VBO[1]);
-    rl.glBufferData(rl.GL_ARRAY_BUFFER, @sizeOf(@TypeOf(texcoords)), &texcoords, rl.GL_STATIC_DRAW);
-    rl.glVertexAttribPointer(1, 2, rl.GL_FLOAT, rl.GL_FALSE, 2 * @sizeOf(f32), null);
-    rl.glEnableVertexAttribArray(1);
-
-    rl.glBindVertexArray(0);
-
-    self.mesh = ChunkMesh{
-        .vao = VAO[0],
-        .vbo = VBO,
-        .vertex_count = @intCast(total_vertices),
-    };
-}
-    pub fn generateMeshOptimizedCustom(self: *Chunk) !void {
-        var heights: [MAX_TRIANGLES*3]f32 = std.mem.zeroes([MAX_TRIANGLES*3]f32);
-        var texcoords: [MAX_TRIANGLES*3*2]f32 = std.mem.zeroes([MAX_TRIANGLES*3*2]f32);
+    // In generateMeshOptimizedCustomIndices:
+    pub fn generateMeshOptimizedCustomIndices(self: *Chunk) !void {
+        var vertex_info: [MAX_TRIANGLES*2]u32 = undefined;
+        var indices: [MAX_TRIANGLES*3]u32 = undefined;        
         var vCounter: usize = 0;
-        var tcCounter: usize = 0;
+        var iCounter: usize = 0;
+
         var x: usize = 0;
-
-        while(x < CHUNK_SIZE_VERTICES-1) : (x+=1) {
+        while(x < CHUNK_SIZE_VERTICES - 1) : (x+=1) {
             var z: usize = 0;
-            while(z < CHUNK_SIZE_VERTICES-1) : (z+=1) {
-                // One triangle - 3 heights
-                heights[vCounter] = self.height_map[x][z];
-                heights[vCounter + 1] = self.height_map[x][z+1];
-                heights[vCounter + 2] = self.height_map[x+1][z];
-
-                // Another triangle - 3 heights
-                heights[vCounter + 3] = self.height_map[x+1][z];
-                heights[vCounter + 4] = self.height_map[x][z+1];
-                heights[vCounter + 5] = self.height_map[x+1][z+1];
-                vCounter += 6;
-
-                // Calculate texture coordinates
-                const uvTileSize = 1.0 / @as(f32, TILE_MAP_SIZE);
-                const tileIndex = self.tile_map[x][z];
-                const uvXBase = @as(f32, @floatFromInt(tileIndex % TILE_MAP_SIZE)) * uvTileSize;
-                const uvYBase = @as(f32, @floatFromInt(tileIndex / TILE_MAP_SIZE)) * uvTileSize;
-
-                // First triangle texcoords
-                texcoords[tcCounter] = uvXBase;
-                texcoords[tcCounter + 1] = uvYBase;
-
-                texcoords[tcCounter + 2] = uvXBase;
-                texcoords[tcCounter + 3] = uvYBase + uvTileSize;
-
-                texcoords[tcCounter + 4] = uvXBase + uvTileSize;
-                texcoords[tcCounter + 5] = uvYBase;
-
-                // Second triangle texcoords
-                texcoords[tcCounter + 6] = uvXBase + uvTileSize;
-                texcoords[tcCounter + 7] = uvYBase;
-
-                texcoords[tcCounter + 8] = uvXBase;
-                texcoords[tcCounter + 9] = uvYBase + uvTileSize;
-
-                texcoords[tcCounter + 10] = uvXBase + uvTileSize;
-                texcoords[tcCounter + 11] = uvYBase + uvTileSize;
-                tcCounter += 12;
+            while(z < CHUNK_SIZE_VERTICES - 1) : (z+=1) {
+                // Pack vertex information
+                var info = chunkVertexInformation{
+                    .height = self.height_map[x][z],
+                    .texture_id = self.tile_map[x][z],
+                    .normal_pitch = 32, // Default to straight up
+                    .normal_yaw = 0,
+                };
+                vertex_info[vCounter] = @bitCast(info);
+                info.height = self.height_map[x][z+1];
+                info.texture_id = self.tile_map[x][z];
+                info.normal_pitch = 32;
+                info.normal_yaw = 0;
+                vertex_info[vCounter + 1] = @bitCast(info);
+                info.height = self.height_map[x+1][z];
+                info.texture_id = self.tile_map[x][z];
+                info.normal_pitch = 32;
+                info.normal_yaw = 0;
+                vertex_info[vCounter + 2] = @bitCast(info);
+                info.height = self.height_map[x+1][z+1];
+                info.texture_id = self.tile_map[x][z];
+                info.normal_pitch = 32;
+                info.normal_yaw = 0;
+                vertex_info[vCounter + 3] = @bitCast(info);
+                
+                // First triangle (top-left, bottom-left, top-right)
+                indices[iCounter] = @intCast(vCounter);
+                indices[iCounter + 1] = @intCast(vCounter+1);
+                indices[iCounter + 2] = @intCast(vCounter+2);
+                
+                // Second triangle (top-right, bottom-left, bottom-right)
+                indices[iCounter + 3] = @intCast(vCounter+2);
+                indices[iCounter + 4] = @intCast(vCounter+1);
+                indices[iCounter + 5] = @intCast(vCounter+3);
+                
+                vCounter += 4;
+                iCounter += 6;
             }
         }
 
         var VAO: [1]c_uint = undefined;
-        var VBO: [2]c_uint = undefined;
+        var VBO: [1]c_uint = undefined;
+        var EBO: [1]c_uint = undefined;
 
         rl.glGenVertexArrays(1, &VAO);
-        rl.glGenBuffers(2, &VBO);
+        rl.glGenBuffers(1, &VBO);
+        rl.glGenBuffers(1, &EBO);
 
         rl.glBindVertexArray(VAO[0]);
 
-        // Buffer heights data
+        // Buffer packed vertex data
         rl.glBindBuffer(rl.GL_ARRAY_BUFFER, VBO[0]);
-        rl.glBufferData(rl.GL_ARRAY_BUFFER, @sizeOf(@TypeOf(heights)), &heights, rl.GL_STATIC_DRAW);
-        rl.glVertexAttribPointer(0, 1, rl.GL_FLOAT, rl.GL_FALSE, @sizeOf(f32), null);
+        rl.glBufferData(rl.GL_ARRAY_BUFFER, @sizeOf(@TypeOf(vertex_info)), &vertex_info, rl.GL_STATIC_DRAW);
+        rl.glVertexAttribIPointer(0, 1, rl.GL_UNSIGNED_INT, 0, null);
         rl.glEnableVertexAttribArray(0);
 
-        // Buffer texcoords data
-        rl.glBindBuffer(rl.GL_ARRAY_BUFFER, VBO[1]);
-        rl.glBufferData(rl.GL_ARRAY_BUFFER, @sizeOf(@TypeOf(texcoords)), &texcoords, rl.GL_STATIC_DRAW);
-        rl.glVertexAttribPointer(1, 2, rl.GL_FLOAT, rl.GL_FALSE, 2 * @sizeOf(f32), null);
-        rl.glEnableVertexAttribArray(1);
+        // Buffer indices
+        rl.glBindBuffer(rl.GL_ELEMENT_ARRAY_BUFFER, EBO[0]);
+        rl.glBufferData(rl.GL_ELEMENT_ARRAY_BUFFER, @intCast(indices.len * @sizeOf(u32)), &indices, rl.GL_STATIC_DRAW);
 
         rl.glBindVertexArray(0);
 
         self.mesh = ChunkMesh{
             .vao = VAO[0],
-            .vbo = VBO,
-            .vertex_count = @intCast(MAX_TRIANGLES * 3),
+            .vbo = [2]c_uint{ VBO[0], 0 },
+            .ebo = EBO[0],
+            .vertex_count = @intCast(iCounter),
         };
     }
 
-    // generates a mesh that uses the vertex shader to calculate vertex xz positions
-    pub fn generateMeshOptimized(self: *Chunk) !void {
-        var heights: [MAX_TRIANGLES*3]f32 = std.mem.zeroes([MAX_TRIANGLES*3]f32);
-        var vCounter: usize = 0;
-        var x: usize = 0;
+    pub fn renderCustomMeshIndices(self: *Chunk) void {
+        rl.BeginShaderMode(self.shader);
+        
+        // Get current matrices state
+        const matView = rl.rlGetMatrixModelview();
+        const matProjection = rl.rlGetMatrixProjection();
+        
+        // Create and combine transformation matrices
+        const matModel = rl.MatrixTranslate(self.wpos.x, self.wpos.y, self.wpos.z);
+        const matModelView = rl.MatrixMultiply(matModel, matView);
+        const matMVP = rl.MatrixMultiply(matModelView, matProjection);
 
-        var mesh: rl.Mesh = .{};
-        mesh.triangleCount = MAX_TRIANGLES;
-        mesh.vertexCount = MAX_TRIANGLES*3;
+        // Set shader uniforms
+        const mvpLoc = rl.GetShaderLocation(self.shader, "mvp");
+        if (mvpLoc != -1) {
+            rl.SetShaderValueMatrix(self.shader, mvpLoc, matMVP);
+        }
 
-        mesh.texcoords = @ptrCast(@alignCast(rl.RL_MALLOC(@as(c_ulong, @intCast(mesh.vertexCount*2*@sizeOf(f32))))));
-        var tcCounter: usize = 0;
+        // Set up texture
+        const texLoc = rl.GetShaderLocation(self.shader, "texture0");
+        if (texLoc != -1) {
+            rl.SetShaderValue(self.shader, texLoc, &[_]i32{0}, rl.SHADER_UNIFORM_INT);
+            rl.rlActiveTextureSlot(0);
+            rl.rlEnableTexture(self.texture.id);
+        }
 
-        while(x < CHUNK_SIZE_VERTICES-1) : (x+=1) {
-            var z: usize = 0;
-            while(z < CHUNK_SIZE_VERTICES-1) : (z+=1) {
-                // one triangle - 3 heights
-                heights[vCounter] = self.height_map[x][z];
-                heights[vCounter + 1] = self.height_map[x][z+1];
-                heights[vCounter + 2] = self.height_map[x+1][z];
-
-                // Another triangle - 3 heghts 
-                heights[vCounter + 3] = self.height_map[x+1][z];
-                heights[vCounter + 4] = self.height_map[x][z+1];
-                heights[vCounter + 5] = self.height_map[x+1][z+1];
-                vCounter += 6;
-
-                // Fill texcoords array with data
-                // --------------------------------------------------------------
-                const uvTileSize = 1.0 / @as(f32, TILE_MAP_SIZE);
-
-                // Compute the UV base offset for the tile at (x, z)
-                const tileIndex = self.tile_map[x][z];
-                const uvXBase = @as(f32, @floatFromInt(tileIndex % TILE_MAP_SIZE)) * uvTileSize;
-                const uvYBase = @as(f32, @floatFromInt(tileIndex / TILE_MAP_SIZE)) * uvTileSize;
-
-                // Fill texcoords array with adjusted UV coordinates
-                mesh.texcoords[tcCounter] = uvXBase;
-                mesh.texcoords[tcCounter + 1] = uvYBase;
-
-                mesh.texcoords[tcCounter + 2] = uvXBase;
-                mesh.texcoords[tcCounter + 3] = uvYBase + uvTileSize;
-
-                mesh.texcoords[tcCounter + 4] = uvXBase + uvTileSize;
-                mesh.texcoords[tcCounter + 5] = uvYBase;
-
-                mesh.texcoords[tcCounter + 6] = mesh.texcoords[tcCounter + 4];
-                mesh.texcoords[tcCounter + 7] = mesh.texcoords[tcCounter + 5];
-
-                mesh.texcoords[tcCounter + 8] = mesh.texcoords[tcCounter + 2];
-                mesh.texcoords[tcCounter + 9] = mesh.texcoords[tcCounter + 3];
-
-                mesh.texcoords[tcCounter + 10] = uvXBase + uvTileSize;
-                mesh.texcoords[tcCounter + 11] = uvYBase + uvTileSize;
-                tcCounter += 12; // 6 texcoords, 12 floats
+        // If VAO not available, set up vertex attributes and indices manually
+        if (!rl.rlEnableVertexArray(self.mesh.vao)) {
+            // Bind and set up heights (vertex positions)
+            rl.glBindBuffer(rl.GL_ARRAY_BUFFER, self.mesh.vbo[0]);
+            const vertexLoc = rl.GetShaderLocation(self.shader, "vertexInfo");
+            if (vertexLoc != -1) {
+                rl.glVertexAttribPointer(
+                    @intCast(vertexLoc), 
+                    1, 
+                    rl.GL_INT, 
+                    rl.GL_FALSE, 
+                    0, 
+                    null
+                );
+                rl.glEnableVertexAttribArray(@intCast(vertexLoc));
             }
+
+            // Bind the element buffer object
+            rl.glBindBuffer(rl.GL_ELEMENT_ARRAY_BUFFER, self.mesh.ebo);
         }
+        
+        // Draw the mesh using indices
+        rl.glDrawElements(
+            rl.GL_TRIANGLES,
+            @intCast(self.mesh.vertex_count),
+            rl.GL_UNSIGNED_INT,
+            null
+        );
 
-        var VAO: [1]c_uint = undefined;
-        var VBO: [2]c_uint = undefined;
-
-        rl.glGenVertexArrays(1, &VAO);
-        rl.glGenBuffers(2, &VBO);
-
-        rl.glBindVertexArray(VAO[0]);
-
-        rl.glBindBuffer(rl.GL_ARRAY_BUFFER, VBO[0]);
-        rl.glBufferData(rl.GL_ARRAY_BUFFER, @sizeOf([MAX_TRIANGLES*3]f32), &heights, rl.GL_STATIC_DRAW);
-        rl.glVertexAttribPointer(0, 1, rl.GL_FLOAT, rl.GL_FALSE, @sizeOf(f32), null);
-        rl.glEnableVertexAttribArray(0);
-
-        // Bind texcoords data
-        rl.glBindBuffer(rl.GL_ARRAY_BUFFER, VBO[1]);
-        rl.glBufferData(rl.GL_ARRAY_BUFFER, mesh.vertexCount * 2 * @sizeOf(f32), mesh.texcoords, rl.GL_STATIC_DRAW);
-        rl.glVertexAttribPointer(1, 2, rl.GL_FLOAT, rl.GL_FALSE, 2 * @sizeOf(f32), null); // 2 floats per texcoord (U, V)
-        rl.glEnableVertexAttribArray(1);
-
-        rl.glBindVertexArray(0);
-
-        mesh.vaoId = VAO[0];
-        mesh.vboId = VBO[0];
-        mesh.colors = null;
-
-        // rl.UploadMesh(&mesh, false);
-        self.model = rl.LoadModelFromMesh(mesh);
-
-        const shader = rl.LoadShader("resources/terrain.vs", "resources/terrain.fs");
-        self.model.materials[0].shader = shader;
-
-        const texture = rl.LoadTexture("atlas_2x2.png");
-        self.model.materials[0].maps[rl.MATERIAL_MAP_DIFFUSE].texture = texture;
-    }
-
-    pub fn generateMesh(self: *Chunk, size: rl.Vector3) !void {
-        var mesh: rl.Mesh = .{};
-
-        mesh.triangleCount = MAX_TRIANGLES;
-        mesh.vertexCount = MAX_TRIANGLES*3;
-
-        // mesh.vertices = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
-        // mesh.normals = (float *)RL_MALLOC(mesh.vertexCount*3*sizeof(float));
-        // mesh.texcoords = (float *)RL_MALLOC(mesh.vertexCount*2*sizeof(float));
-        mesh.vertices = @ptrCast(@alignCast(rl.RL_MALLOC(@as(c_ulong, @intCast(mesh.vertexCount*3*@sizeOf(f32))))));
-        // mesh.normals = @ptrCast(@alignCast(rl.RL_MALLOC(@as(c_ulong, @intCast(mesh.vertexCount*3*@sizeOf(f32))))));
-        mesh.texcoords = @ptrCast(@alignCast(rl.RL_MALLOC(@as(c_ulong, @intCast(mesh.vertexCount*2*@sizeOf(f32))))));
-        mesh.colors = null;
-
-        var vCounter: usize = 0;
-        var tcCounter: usize = 0;
-        // var nCounter: usize = 0;
-
-        // var vA: rl.Vector3 = .{.x=0,.y=0,.z=0};
-        // var vB: rl.Vector3 = .{.x=0,.y=0,.z=0};
-        // var vC: rl.Vector3 = .{.x=0,.y=0,.z=0};
-        // var vN: rl.Vector3 = .{.x=0,.y=0,.z=0};
-
-        const scaleFactor: rl.Vector3 = .{ .x = size.x/CHUNK_SIZE, .y = size.y/MAX_HEIGHTMAP_VALUE, .z = size.z/CHUNK_SIZE };
-
-        var x: usize = 0;
-        while(x < CHUNK_SIZE_VERTICES-1) : (x+=1) {
-            var z: usize = 0;
-            while(z < CHUNK_SIZE_VERTICES-1) : (z+=1) {
-                // one triangle - 3 vertex
-                mesh.vertices[vCounter] = @as(f32, @floatFromInt(x))*scaleFactor.x;
-                mesh.vertices[vCounter + 1] = self.height_map[x][z]*scaleFactor.y;
-                mesh.vertices[vCounter + 2] = @as(f32, @floatFromInt(z))*scaleFactor.z;
-
-                mesh.vertices[vCounter + 3] = @as(f32, @floatFromInt(x))*scaleFactor.x;
-                mesh.vertices[vCounter + 4] = self.height_map[x][z+1]*scaleFactor.y;
-                mesh.vertices[vCounter + 5] = @as(f32, @floatFromInt(z+1))*scaleFactor.z;
-
-                mesh.vertices[vCounter + 6] = @as(f32, @floatFromInt(x+1))*scaleFactor.x;
-                mesh.vertices[vCounter + 7] = self.height_map[x+1][z]*scaleFactor.y;
-                mesh.vertices[vCounter + 8] = @as(f32, @floatFromInt(z))*scaleFactor.z;
-
-                // Another triangle - 3 vertex
-                mesh.vertices[vCounter + 9] = mesh.vertices[vCounter + 6];
-                mesh.vertices[vCounter + 10] = mesh.vertices[vCounter + 7];
-                mesh.vertices[vCounter + 11] = mesh.vertices[vCounter + 8];
-
-                mesh.vertices[vCounter + 12] = mesh.vertices[vCounter + 3];
-                mesh.vertices[vCounter + 13] = mesh.vertices[vCounter + 4];
-                mesh.vertices[vCounter + 14] = mesh.vertices[vCounter + 5];
-
-                mesh.vertices[vCounter + 15] = @as(f32, @floatFromInt(x+1))*scaleFactor.x;
-                mesh.vertices[vCounter + 16] = self.height_map[x+1][z+1]*scaleFactor.y;
-                mesh.vertices[vCounter + 17] = @as(f32, @floatFromInt(z+1))*scaleFactor.z;
-                vCounter += 18;     // 6 vertex, 18 floats
-                
-                // Fill texcoords array with data
-                // --------------------------------------------------------------
-                const uvTileSize = 1.0 / @as(f32, TILE_MAP_SIZE);
-
-                // Compute the UV base offset for the tile at (x, z)
-                const tileIndex = self.tile_map[x][z];
-                const uvXBase = @as(f32, @floatFromInt(tileIndex % TILE_MAP_SIZE)) * uvTileSize;
-                const uvYBase = @as(f32, @floatFromInt(tileIndex / TILE_MAP_SIZE)) * uvTileSize;
-
-                // THID METHOD GETS MAX 1800 MIN 1150 FPS
-                // Fill texcoords array with adjusted UV coordinates
-                mesh.texcoords[tcCounter] = uvXBase;
-                mesh.texcoords[tcCounter + 1] = uvYBase;
-
-                mesh.texcoords[tcCounter + 2] = uvXBase;
-                mesh.texcoords[tcCounter + 3] = uvYBase + uvTileSize;
-
-                mesh.texcoords[tcCounter + 4] = uvXBase + uvTileSize;
-                mesh.texcoords[tcCounter + 5] = uvYBase;
-
-                mesh.texcoords[tcCounter + 6] = mesh.texcoords[tcCounter + 4];
-                mesh.texcoords[tcCounter + 7] = mesh.texcoords[tcCounter + 5];
-
-                mesh.texcoords[tcCounter + 8] = mesh.texcoords[tcCounter + 2];
-                mesh.texcoords[tcCounter + 9] = mesh.texcoords[tcCounter + 3];
-
-                mesh.texcoords[tcCounter + 10] = uvXBase + uvTileSize;
-                mesh.texcoords[tcCounter + 11] = uvYBase + uvTileSize;
-                tcCounter += 12; // 6 texcoords, 12 floats
-                
-                // Fill normals array with data
-                //--------------------------------------------------------------
-                // var i: usize = 0;
-                // while(i<18) : (i+=9) {
-                //     vA.x = mesh.vertices[nCounter + i];
-                //     vA.y = mesh.vertices[nCounter + i + 1];
-                //     vA.z = mesh.vertices[nCounter + i + 2];
-
-                //     vB.x = mesh.vertices[nCounter + i + 3];
-                //     vB.y = mesh.vertices[nCounter + i + 4];
-                //     vB.z = mesh.vertices[nCounter + i + 5];
-
-                //     vC.x = mesh.vertices[nCounter + i + 6];
-                //     vC.y = mesh.vertices[nCounter + i + 7];
-                //     vC.z = mesh.vertices[nCounter + i + 8];
-
-                //     vN = rl.Vector3Normalize(rl.Vector3CrossProduct(rl.Vector3Subtract(vB, vA), rl.Vector3Subtract(vC, vA)));
-
-                //     mesh.normals[nCounter + i] = vN.x;
-                //     mesh.normals[nCounter + i + 1] = vN.y;
-                //     mesh.normals[nCounter + i + 2] = vN.z;
-
-                //     mesh.normals[nCounter + i + 3] = vN.x;
-                //     mesh.normals[nCounter + i + 4] = vN.y;
-                //     mesh.normals[nCounter + i + 5] = vN.z;
-
-                //     mesh.normals[nCounter + i + 6] = vN.x;
-                //     mesh.normals[nCounter + i + 7] = vN.y;
-                //     mesh.normals[nCounter + i + 8] = vN.z;
-                // }
-                // nCounter += 18;     // 6 vertex, 18 floats
-            }
+        // Cleanup state
+        if (texLoc != -1) {
+            rl.rlDisableTexture();
         }
-        rl.UploadMesh(&mesh, false);
-        self.model = rl.LoadModelFromMesh(mesh);
-
-        // const shader = rl.LoadShader("resources/terrain.vs", "resources/terrain.fs");
-        // self.model.materials[0].shader = shader;
-
-        const texture = rl.LoadTexture("atlas_2x2.png");
-        self.model.materials[0].maps[rl.MATERIAL_MAP_DIFFUSE].texture = texture;
+        
+        rl.rlDisableVertexArray();
+        rl.glBindBuffer(rl.GL_ARRAY_BUFFER, 0);
+        rl.glBindBuffer(rl.GL_ELEMENT_ARRAY_BUFFER, 0);
+        
+        rl.EndShaderMode();
+        // Restore matrices
+        rl.rlSetMatrixModelview(matView);
+        rl.rlSetMatrixProjection(matProjection);    
     }
-
-    pub fn renderMesh(self: *Chunk) void {
-        if (self.model.meshCount > 0) {
-            rl.DrawModel(self.model, self.wpos, 1.0, rl.WHITE);
-        }
-    }
-
-pub fn renderCustomMesh(self: *Chunk) void {
-    rl.BeginShaderMode(self.shader);
-    
-    // Get current matrices state
-    const matView = rl.rlGetMatrixModelview();
-    const matProjection = rl.rlGetMatrixProjection();
-    
-    // Create and combine transformation matrices
-    const matModel = rl.MatrixTranslate(self.wpos.x, self.wpos.y, self.wpos.z);
-    const matModelView = rl.MatrixMultiply(matModel, matView);
-    const matMVP = rl.MatrixMultiply(matModelView, matProjection);
-
-    // Set shader uniforms
-    const mvpLoc = rl.GetShaderLocation(self.shader, "mvp");
-    if (mvpLoc != -1) {
-        rl.SetShaderValueMatrix(self.shader, mvpLoc, matMVP);
-    }
-
-    // Set up texture
-    const texLoc = rl.GetShaderLocation(self.shader, "texture0");
-    if (texLoc != -1) {
-    rl.SetShaderValue(self.shader, texLoc, &[_]i32{0}, rl.SHADER_UNIFORM_INT);
-     rl.rlActiveTextureSlot(0);
-        rl.rlEnableTexture(self.texture.id);
-    }
-
-    // If VAO not available, set up vertex attributes manually
-    if (!rl.rlEnableVertexArray(self.mesh.vao)) {
-        // Bind and set up heights (vertex positions)
-        rl.glBindBuffer(rl.GL_ARRAY_BUFFER, self.mesh.vbo[0]);
-        const vertexLoc = rl.GetShaderLocation(self.shader, "vertexPosition");
-        if (vertexLoc != -1) {
-            rl.glVertexAttribPointer(
-                @intCast(vertexLoc), 
-                1, 
-                rl.GL_FLOAT, 
-                rl.GL_FALSE, 
-                0, 
-                null
-            );
-            rl.glEnableVertexAttribArray(@intCast(vertexLoc));
-        }
-
-        // Bind and set up texcoords
-        rl.glBindBuffer(rl.GL_ARRAY_BUFFER, self.mesh.vbo[1]);
-        const texcoordLoc = rl.GetShaderLocation(self.shader, "vertexTexCoord");
-        if (texcoordLoc != -1) {
-            rl.glVertexAttribPointer(
-                @intCast(texcoordLoc), 
-                2, 
-                rl.GL_FLOAT, 
-                rl.GL_FALSE, 
-                0, 
-                null
-            );
-            rl.glEnableVertexAttribArray(@intCast(texcoordLoc));
-        }
-    }
-    
-
-    // Draw the mesh
-    rl.glDrawArrays(rl.GL_TRIANGLES, 0, self.mesh.vertex_count);
-
-    // Cleanup state
-    if (texLoc != -1) {
-        rl.rlDisableTexture();
-    }
-    
-    rl.rlDisableVertexArray();
-    rl.glBindBuffer(rl.GL_ARRAY_BUFFER, 0);
-    
-    rl.EndShaderMode();
-
-    // Restore matrices
-    rl.rlSetMatrixModelview(matView);
-    rl.rlSetMatrixProjection(matProjection);
-}
-
-pub fn renderCustomMeshStrip(self: *Chunk) void {
-    rl.BeginShaderMode(self.shader);
-    
-    // Get current matrices state
-    const matView = rl.rlGetMatrixModelview();
-    const matProjection = rl.rlGetMatrixProjection();
-    
-    // Create and combine transformation matrices
-    const matModel = rl.MatrixTranslate(self.wpos.x, self.wpos.y, self.wpos.z);
-    const matModelView = rl.MatrixMultiply(matModel, matView);
-    const matMVP = rl.MatrixMultiply(matModelView, matProjection);
-
-    // Set shader uniforms
-    const mvpLoc = rl.GetShaderLocation(self.shader, "mvp");
-    if (mvpLoc != -1) {
-        rl.SetShaderValueMatrix(self.shader, mvpLoc, matMVP);
-    }
-
-    // Set up texture
-    const texLoc = rl.GetShaderLocation(self.shader, "texture0");
-    if (texLoc != -1) {
-    rl.SetShaderValue(self.shader, texLoc, &[_]i32{0}, rl.SHADER_UNIFORM_INT);
-     rl.rlActiveTextureSlot(0);
-        rl.rlEnableTexture(self.texture.id);
-    }
-
-    // If VAO not available, set up vertex attributes manually
-    if (!rl.rlEnableVertexArray(self.mesh.vao)) {
-        // Bind and set up heights (vertex positions)
-        rl.glBindBuffer(rl.GL_ARRAY_BUFFER, self.mesh.vbo[0]);
-        const vertexLoc = rl.GetShaderLocation(self.shader, "vertexPosition");
-        if (vertexLoc != -1) {
-            rl.glVertexAttribPointer(
-                @intCast(vertexLoc), 
-                1, 
-                rl.GL_FLOAT, 
-                rl.GL_FALSE, 
-                0, 
-                null
-            );
-            rl.glEnableVertexAttribArray(@intCast(vertexLoc));
-        }
-
-        // Bind and set up texcoords
-        rl.glBindBuffer(rl.GL_ARRAY_BUFFER, self.mesh.vbo[1]);
-        const texcoordLoc = rl.GetShaderLocation(self.shader, "vertexTexCoord");
-        if (texcoordLoc != -1) {
-            rl.glVertexAttribPointer(
-                @intCast(texcoordLoc), 
-                2, 
-                rl.GL_FLOAT, 
-                rl.GL_FALSE, 
-                0, 
-                null
-            );
-            rl.glEnableVertexAttribArray(@intCast(texcoordLoc));
-        }
-    }
-    
-
-    // Draw the mesh
-    rl.glDrawArrays(rl.GL_TRIANGLE_STRIP, 0, self.mesh.vertex_count);
-
-    // Cleanup state
-    if (texLoc != -1) {
-        rl.rlDisableTexture();
-    }
-    
-    rl.rlDisableVertexArray();
-    rl.glBindBuffer(rl.GL_ARRAY_BUFFER, 0);
-    
-    rl.EndShaderMode();
-
-    // Restore matrices
-    rl.rlSetMatrixModelview(matView);
-    rl.rlSetMatrixProjection(matProjection);
-}
 
     pub fn deinit(self: *Chunk) void {
         _ = self;
-        // rl.UnloadModel(self.model);
     }
 };

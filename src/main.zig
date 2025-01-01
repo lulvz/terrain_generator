@@ -2,7 +2,7 @@ const std = @import("std");
 const rl = @import("rl.zig");
 const chunk = @import("chunk.zig");
 
-const CHUNK_AMOUNT = 20;
+const CHUNK_AMOUNT = 3;
 
 fn drawAxisLines() void {
     const origin = rl.Vector3{ .x = 0.0, .y = 0.0, .z = 0.0 };
@@ -43,7 +43,8 @@ pub fn main() !void {
             // try c.generateMesh(rl.Vector3{.x = 16, .y = 10, .z = 16});
             // try c.generateMeshOptimized();
             // try c.generateMeshOptimizedCustom();
-            try c.generateMeshOptimizedCustomStrip();
+            try c.generateMeshOptimizedCustomIndices();
+            // try c.generateMeshOptimizedCustomStrip();
             chunk_array[chunk_index] = c;
             chunk_index+=1;
         }
@@ -67,7 +68,8 @@ pub fn main() !void {
         for(0..CHUNK_AMOUNT*2*CHUNK_AMOUNT*2) |i| {
             // chunk_array[i].renderMesh();
             // chunk_array[i].renderCustomMesh();
-            chunk_array[i].renderCustomMeshStrip();
+            chunk_array[i].renderCustomMeshIndices();
+            // chunk_array[i].renderCustomMeshStrip();
         }
 
         drawAxisLines();

@@ -1,7 +1,7 @@
 #version 330 core
 
 in vec3 fragPosition; // Position of the vertex passed from the vertex shader
-in vec2 vBary;
+// in vec2 vBary;
 out vec4 finalColor;  // Output color of the fragment
 
 // in float tileID;      // Tile ID passed from the vertex shader
@@ -29,6 +29,6 @@ void main() {
 
     // wireframe mode
     // finalColor.rgb *= 0.5;
-    finalColor.rgb += vec3(1.0 - barycentric(vBary, 1.0));
+    // finalColor.rgb += vec3(1.0 - barycentric(vBary, 1.0));
 
 }

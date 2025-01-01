@@ -2,7 +2,7 @@
 layout(location = 0) in int vertexInfo;    // Input info for each vertex
 // TODO CHECK IF USING INTS IS FINE FOR THIS
 out vec3 fragPosition;                         // Pass to the fragment shader
-out vec2 vBary;
+// out vec2 vBary;
 uniform mat4 mvp;
 
 float gridSize = 16.0; // CHUNK_SIZE_VERTICES
@@ -37,14 +37,14 @@ void main() {
     float heightf = float(height);
     
     // Calculate barycentric coordinates
-    int vertexInTriangle = gl_VertexID % 3; // Vertex index within the triangle
-    if (vertexInTriangle == 0) {
-        vBary = vec2(1.0, 0.0); // First vertex
-    } else if (vertexInTriangle == 1) {
-        vBary = vec2(0.0, 1.0); // Second vertex
-    } else { // vertexInTriangle == 2
-        vBary = vec2(0.0, 0.0); // Third vertex
-    }
+    // int vertexInTriangle = gl_VertexID % 3; // Vertex index within the triangle
+    // if (vertexInTriangle == 0) {
+    //     vBary = vec2(1.0, 0.0); // First vertex
+    // } else if (vertexInTriangle == 1) {
+    //     vBary = vec2(0.0, 1.0); // Second vertex
+    // } else { // vertexInTriangle == 2
+    //     vBary = vec2(0.0, 0.0); // Third vertex
+    // }
     
     // Construct the vertex position using the input height
     vec3 vertexPosition = vec3(x, heightf, z);

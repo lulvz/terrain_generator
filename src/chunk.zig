@@ -28,20 +28,16 @@ const chunkVertexInformation = packed struct(u32) {
 const TILE_MAP_SIZE: comptime_int = 2;
 
 pub const Chunk = struct {
-    allocator: std.mem.Allocator,
+        allocator: std.mem.Allocator,
     wx: i32,
     wz: i32,
     wpos: rl.Vector3,
-    height_map: [CHUNK_SIZE_VERTICES][CHUNK_SIZE_VERTICES]u8, // TODO make this load from this file: chunk_%d_%d.bin
+    height_map: [CHUNK_SIZE_VERTICES][CHUNK_SIZE_VERTICES]u8,
     tile_map: [CHUNK_SIZE][CHUNK_SIZE]u12,
     mesh: ChunkMesh,
-    shader: rl.Shader,
-    texture: rl.Texture,
-
-    packed_vertex_information: [CHUNK_SIZE_VERTICES*CHUNK_SIZE_VERTICES]u32,
 
     pub fn init(allocator: std.mem.Allocator, wx: i32, wz: i32) Chunk {
-        var chunk = Chunk {
+        const chunk = Chunk{
             .allocator = allocator,
             .wx = wx,
             .wz = wz,
@@ -53,34 +49,15 @@ pub const Chunk = struct {
             .height_map = std.mem.zeroes([CHUNK_SIZE_VERTICES][CHUNK_SIZE_VERTICES]u8),
             .tile_map = std.mem.zeroes([CHUNK_SIZE][CHUNK_SIZE]u12),
             .mesh = undefined,
-            .shader = undefined,
-            .texture = undefined,
-            .packed_vertex_information = undefined,
         };
 
-        const shader = rl.LoadShader("resources/terrain_indices.vs", "resources/terrain_indices.fs");
-        chunk.shader = shader;
-
-        const texture = rl.LoadTexture("atlas_2x2.png");
-        chunk.texture = texture;
-
-        for (0..CHUNK_SIZE) |x| {
-            for (0..CHUNK_SIZE) |z| {
-                chunk.tile_map[x][z] = @intCast((x+z)%4);
-                // chunk.tile_map[x][z] = 2;
-            }
-        } 
-
-        var x: usize = 0;
-
-        while (x < CHUNK_SIZE_VERTICES) : (x += 1) {
-            var z: usize = 0;
-            while (z < CHUNK_SIZE_VERTICES) : (z += 1) {
-                // Example: Using a simple calculation for the height map
-                chunk.height_map[x][z] = @intCast(x + z); // Ensure proper casting to u8
-            }
-        }
-
+        // Initialize height_map and tile_map
+        // for (0..CHUNK_SIZE_VERTICES) |x| {
+        //     for (0..CHUNK_SIZE_VERTICES) |z| {
+        //         chunk.height_map[x][z] = @intCast(x + z); // Example height map data
+        //         // chunk.tile_map[x][z] = @intCast((x+z)%4);
+        //     }
+        // }
         return chunk;
     }
 
@@ -171,9 +148,9 @@ pub const Chunk = struct {
         };
     }
 
-    pub fn renderCustomMeshIndices(self: *Chunk) void {
-        rl.BeginShaderMode(self.shader);
-        
+    pub fn render(self: *Chunk, shader: rl.Shader, texture: rl.Texture) void {
+        rl.BeginShaderMode(shader);
+
         // Get current matrices state
         const matView = rl.rlGetMatrixModelview();
         const matProjection = rl.rlGetMatrixProjection();
@@ -183,25 +160,25 @@ pub const Chunk = struct {
         const matModelView = rl.MatrixMultiply(matModel, matView);
         const matMVP = rl.MatrixMultiply(matModelView, matProjection);
 
-        // Set shader uniforms
-        const mvpLoc = rl.GetShaderLocation(self.shader, "mvp");
-        if (mvpLoc != -1) {
-            rl.SetShaderValueMatrix(self.shader, mvpLoc, matMVP);
+        // Set up texture
+        const texLoc = rl.GetShaderLocation(shader, "texture0");
+        if (texLoc != -1) {
+            rl.SetShaderValue(shader, texLoc, &[_]i32{0}, rl.SHADER_UNIFORM_INT);
+            rl.rlActiveTextureSlot(0);
+            rl.rlEnableTexture(texture.id);
         }
 
-        // Set up texture
-        const texLoc = rl.GetShaderLocation(self.shader, "texture0");
-        if (texLoc != -1) {
-            rl.SetShaderValue(self.shader, texLoc, &[_]i32{0}, rl.SHADER_UNIFORM_INT);
-            rl.rlActiveTextureSlot(0);
-            rl.rlEnableTexture(self.texture.id);
+        // Set shader uniforms
+        const mvpLoc = rl.GetShaderLocation(shader, "mvp");
+        if (mvpLoc != -1) {
+            rl.SetShaderValueMatrix(shader, mvpLoc, matMVP);
         }
 
         // If VAO not available, set up vertex attributes and indices manually
         if (!rl.rlEnableVertexArray(self.mesh.vao)) {
             // Bind and set up heights (vertex positions)
             rl.glBindBuffer(rl.GL_ARRAY_BUFFER, self.mesh.vbo[0]);
-            const vertexLoc = rl.GetShaderLocation(self.shader, "vertexInfo");
+            const vertexLoc = rl.GetShaderLocation(shader, "vertexInfo");
             if (vertexLoc != -1) {
                 rl.glVertexAttribPointer(
                     @intCast(vertexLoc), 
@@ -217,20 +194,13 @@ pub const Chunk = struct {
             // Bind the element buffer object
             rl.glBindBuffer(rl.GL_ELEMENT_ARRAY_BUFFER, self.mesh.ebo);
         }
-        
-        // Draw the mesh using indices
-        rl.glDrawElements(
-            rl.GL_TRIANGLES,
-            @intCast(self.mesh.vertex_count),
-            rl.GL_UNSIGNED_INT,
-            null
-        );
 
-        // Cleanup state
-        if (texLoc != -1) {
-            rl.rlDisableTexture();
-        }
-        
+        // rl.glBindVertexArray(self.mesh.vao);
+        rl.glDrawElements(rl.GL_TRIANGLES, @intCast(self.mesh.vertex_count), rl.GL_UNSIGNED_INT, null);
+        rl.glBindVertexArray(0);
+        rl.rlDisableTexture();
+
+                
         rl.rlDisableVertexArray();
         rl.glBindBuffer(rl.GL_ARRAY_BUFFER, 0);
         rl.glBindBuffer(rl.GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -242,6 +212,8 @@ pub const Chunk = struct {
     }
 
     pub fn deinit(self: *Chunk) void {
-        _ = self;
+        rl.glDeleteBuffers(1, &self.mesh.vbo[0]);
+        rl.glDeleteBuffers(1, &self.mesh.ebo);
+        rl.glDeleteVertexArrays(1, &self.mesh.vao);
     }
 };

@@ -1,8 +1,9 @@
 const std = @import("std");
 const rl = @import("rl.zig");
-const chunk = @import("chunk.zig");
+// const chunk = @import("chunk.zig");
+const ChunkManager = @import("chunk_manager.zig").ChunkManager;
 
-const CHUNK_AMOUNT = 3;
+const CHUNK_AMOUNT = 20;
 
 fn drawAxisLines() void {
     const origin = rl.Vector3{ .x = 0.0, .y = 0.0, .z = 0.0 };
@@ -25,59 +26,37 @@ pub fn main() !void {
     camera.up = rl.Vector3{ .x=0.0, .y=1.0, .z=0.0 };          // Camera up vector (rotation towards target)
     camera.fovy = 75.0;                                // Camera field-of-view Y
     camera.projection = rl.CAMERA_PERSPECTIVE;             // Camera projection type
-    
+
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
-    // var c = chunk.Chunk.init(allocator, 0, 0);
-    // defer c.deinit();
-    // try c.generateMesh(rl.Vector3{.x = 128, .y = 255.0, .z = 128});
 
-    var chunk_array: [CHUNK_AMOUNT*2*CHUNK_AMOUNT*2]chunk.Chunk = undefined;
-    var chunk_index: usize = 0;
+    var chunk_manager: ChunkManager = try ChunkManager.init(allocator);
+    defer chunk_manager.deinit();
+
     var x: i32 = -CHUNK_AMOUNT;
     while(x < CHUNK_AMOUNT) : (x+=1) {
         var z: i32 = -CHUNK_AMOUNT;
         while(z < CHUNK_AMOUNT) : (z+=1) {
-            var c = chunk.Chunk.init(allocator, x, z);
-            // try c.generateMesh(rl.Vector3{.x = 16, .y = 10, .z = 16});
-            // try c.generateMeshOptimized();
-            // try c.generateMeshOptimizedCustom();
-            try c.generateMeshOptimizedCustomIndices();
-            // try c.generateMeshOptimizedCustomStrip();
-            chunk_array[chunk_index] = c;
-            chunk_index+=1;
+            try chunk_manager.createChunk(x, z);
         }
     }
-
-    // var lastTime = rl.GetTime();
+    
     while(!rl.WindowShouldClose()) {
-        // const currentTime = rl.GetTime();
-        // const deltaTime = currentTime - lastTime;
-        // lastTime = currentTime;
         // UPDATE THINGS
         rl.UpdateCamera(&camera, rl.CAMERA_FIRST_PERSON);
 
+        // DRAW THINGS
         rl.BeginDrawing();
         defer rl.EndDrawing();
         rl.ClearBackground(rl.BLACK);
  
         rl.BeginMode3D(camera);
 
-        // c.renderMesh();
-        for(0..CHUNK_AMOUNT*2*CHUNK_AMOUNT*2) |i| {
-            // chunk_array[i].renderMesh();
-            // chunk_array[i].renderCustomMesh();
-            chunk_array[i].renderCustomMeshIndices();
-            // chunk_array[i].renderCustomMeshStrip();
-        }
+        chunk_manager.render();
 
         drawAxisLines();
         rl.EndMode3D();
         rl.DrawFPS(10, 10);
-    }
-
-    for(0..CHUNK_AMOUNT*2*CHUNK_AMOUNT*2) |i| {
-        chunk_array[i].deinit();
     }
 }

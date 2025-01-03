@@ -5,6 +5,13 @@ const chunk = @import("chunk.zig");
 
 const CHUNK_AMOUNT = 40*40;
 
+const Vec3Padded = struct {
+    x: f32,
+    y: f32,
+    z: f32,
+    _padding: f32 = 0,
+};
+
 pub const ChunkManager = struct {
     allocator: std.mem.Allocator,
     shader: rl.Shader,
@@ -13,35 +20,42 @@ pub const ChunkManager = struct {
 
     shared_vertex_info: []u32,
     shared_indices: []u32,
+    shared_wpos: []Vec3Padded,
 
     shared_vertex_info_idx: usize,
     shared_indices_idx: usize,
+    shared_wpos_idx: usize,
 
     VAO: c_uint,
     VBO: c_uint,
     EBO: c_uint,
+    UBO: c_uint,
 
     pub fn init(allocator: std.mem.Allocator) !ChunkManager {
         var cm = ChunkManager{
             .allocator = allocator,
-            .shader = rl.LoadShader("resources/terrain_indices.vs", "resources/terrain_indices.fs"),
+            .shader = rl.LoadShader("resources/terrain_indices_batch.vs", "resources/terrain_indices_batch.fs"),
             .texture = rl.LoadTexture("atlas_2x2.png"),
             .chunks = std.ArrayList(*chunk.Chunk).init(allocator),
 
             .shared_vertex_info = try allocator.alloc(u32, CHUNK_AMOUNT * chunk.MAX_VERTICES),
             .shared_indices = try allocator.alloc(u32, CHUNK_AMOUNT * chunk.MAX_INDICES),
+            .shared_wpos = try allocator.alloc(Vec3Padded, CHUNK_AMOUNT),
 
             .shared_vertex_info_idx = 0,
             .shared_indices_idx = 0,
+            .shared_wpos_idx = 0,
 
             .VAO = undefined,
             .VBO= undefined,
             .EBO = undefined,
+            .UBO = undefined,
         };
 
         rl.glGenVertexArrays(1, &cm.VAO);
         rl.glGenBuffers(1, &cm.VBO);
         rl.glGenBuffers(1, &cm.EBO);
+        rl.glGenBuffers(1, &cm.UBO);
 
         return cm;
     }
@@ -54,8 +68,16 @@ pub const ChunkManager = struct {
                 self.shared_vertex_info[self.shared_vertex_info_idx..self.shared_vertex_info_idx+chunk.MAX_VERTICES],
                 self.shared_indices[self.shared_indices_idx..self.shared_indices_idx+chunk.MAX_INDICES]
             );
+            // Apply the vertex offset to each index in the chunk
+            for (self.shared_indices[self.shared_indices_idx..self.shared_indices_idx+chunk.MAX_INDICES], 0..) |index, idx| {
+                self.shared_indices[self.shared_indices_idx..self.shared_indices_idx+chunk.MAX_INDICES][idx] = @intCast(index + self.shared_vertex_info_idx);
+            }
+            self.shared_wpos[self.shared_wpos_idx] = .{.x = c.wpos.x, .y = c.wpos.y, .z = c.wpos.z};
+
             self.shared_vertex_info_idx += chunk.MAX_VERTICES;
             self.shared_indices_idx += chunk.MAX_INDICES;
+            self.shared_wpos_idx += 1;
+
             try self.chunks.append(c);
         }
     }
@@ -72,7 +94,15 @@ pub const ChunkManager = struct {
         rl.glBindBuffer(rl.GL_ELEMENT_ARRAY_BUFFER, self.EBO);
         rl.glBufferData(rl.GL_ELEMENT_ARRAY_BUFFER, @intCast(self.shared_indices_idx * @sizeOf(u32)), self.shared_indices.ptr, rl.GL_STATIC_DRAW);
 
+
+        rl.glBindBuffer(rl.GL_UNIFORM_BUFFER, self.UBO);
+        rl.glBufferData(rl.GL_UNIFORM_BUFFER, @intCast(self.shared_wpos_idx * @sizeOf(Vec3Padded)), self.shared_wpos.ptr, rl.GL_STATIC_DRAW);
+        rl.glBindBufferBase(rl.GL_UNIFORM_BUFFER, 0, self.UBO);
+
         rl.glBindVertexArray(0);
+        rl.glBindBuffer(rl.GL_ARRAY_BUFFER, 0);
+        rl.glBindBuffer(rl.GL_ELEMENT_ARRAY_BUFFER, 0);
+        rl.glBindBuffer(rl.GL_UNIFORM_BUFFER, 0);
     }
 
     pub fn render(self: *ChunkManager) void {
@@ -87,10 +117,6 @@ pub const ChunkManager = struct {
 
         const mvpLoc = rl.GetShaderLocation(self.shader, "mvp");
         rl.SetShaderValueMatrix(self.shader, mvpLoc, matModelViewProjection);
-
-        // Set up wpos TODO MAKE THIS A UBO WITH THE WPOSITIONS OF EVERY CHUNK RENDERED
-        const wposLoc = rl.GetShaderLocation(self.shader, "wpos");
-        rl.SetShaderValueV(self.shader, wposLoc, &rl.Vector3{.x=0,.y=0,.z=0}, rl.SHADER_UNIFORM_VEC3, 1);
 
         // If VAO not available, set up vertex attributes and indices manually
         if (!rl.rlEnableVertexArray(self.VAO)) {
@@ -111,6 +137,8 @@ pub const ChunkManager = struct {
 
             // Bind the element buffer object
             rl.glBindBuffer(rl.GL_ELEMENT_ARRAY_BUFFER, self.EBO);
+
+            rl.glBindBuffer(rl.GL_UNIFORM_BUFFER, self.UBO);
         }
 
         rl.glDrawElements(rl.GL_TRIANGLES, @intCast(self.shared_indices_idx), rl.GL_UNSIGNED_INT, null);

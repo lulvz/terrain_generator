@@ -3,7 +3,7 @@ const rl = @import("rl.zig");
 // const chunk = @import("chunk.zig");
 const ChunkManager = @import("chunk_manager.zig").ChunkManager;
 
-const CHUNK_AMOUNT = 6;
+const CHUNK_AMOUNT = 1;
 
 fn drawAxisLines() void {
     const origin = rl.Vector3{ .x = 0.0, .y = 0.0, .z = 0.0 };
@@ -42,6 +42,7 @@ pub fn main() !void {
         }
     }
     
+    // rl.SetTargetFPS(60);
     while(!rl.WindowShouldClose()) {
         // UPDATE THINGS
         rl.UpdateCamera(&camera, rl.CAMERA_FIRST_PERSON);

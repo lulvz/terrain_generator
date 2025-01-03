@@ -150,30 +150,19 @@ pub const Chunk = struct {
     }
 
     pub fn render(self: *Chunk, shader: rl.Shader, texture: rl.Texture) void {
-        rl.BeginShaderMode(shader);
-
-        // Get current matrices state
-        const matView = rl.rlGetMatrixModelview();
+        const matModelView = rl.rlGetMatrixModelview();
         const matProjection = rl.rlGetMatrixProjection();
-        
-        // Create and combine transformation matrices
-        const matModel = rl.MatrixTranslate(self.wpos.x, self.wpos.y, self.wpos.z);
-        const matModelView = rl.MatrixMultiply(matModel, matView);
-        const matMVP = rl.MatrixMultiply(matModelView, matProjection);
+        const matModelViewProjection = rl.MatrixMultiply(matModelView, matProjection);
+
+        const mvpLoc = rl.GetShaderLocation(shader, "mvp");
+        rl.SetShaderValueMatrix(shader, mvpLoc, matModelViewProjection);
 
         // Set up texture
         const texLoc = rl.GetShaderLocation(shader, "texture0");
-        if (texLoc != -1) {
-            rl.SetShaderValue(shader, texLoc, &[_]i32{0}, rl.SHADER_UNIFORM_INT);
-            rl.rlActiveTextureSlot(0);
-            rl.rlEnableTexture(texture.id);
-        }
-
-        // Set shader uniforms
-        const mvpLoc = rl.GetShaderLocation(shader, "mvp");
-        if (mvpLoc != -1) {
-            rl.SetShaderValueMatrix(shader, mvpLoc, matMVP);
-        }
+        rl.rlSetUniformSampler(texLoc, texture.id);
+        // Set up wpos
+        const wposLoc = rl.GetShaderLocation(shader, "wpos");
+        rl.SetShaderValueV(shader, wposLoc, &self.wpos, rl.SHADER_UNIFORM_VEC3, 1);
 
         // If VAO not available, set up vertex attributes and indices manually
         if (!rl.rlEnableVertexArray(self.mesh.vao)) {
@@ -196,20 +185,10 @@ pub const Chunk = struct {
             rl.glBindBuffer(rl.GL_ELEMENT_ARRAY_BUFFER, self.mesh.ebo);
         }
 
-        // rl.glBindVertexArray(self.mesh.vao);
         rl.glDrawElements(rl.GL_TRIANGLES, @intCast(self.mesh.vertex_count), rl.GL_UNSIGNED_INT, null);
         rl.glBindVertexArray(0);
-        rl.rlDisableTexture();
-
-                
-        rl.rlDisableVertexArray();
         rl.glBindBuffer(rl.GL_ARRAY_BUFFER, 0);
         rl.glBindBuffer(rl.GL_ELEMENT_ARRAY_BUFFER, 0);
-        
-        rl.EndShaderMode();
-        // Restore matrices
-        rl.rlSetMatrixModelview(matView);
-        rl.rlSetMatrixProjection(matProjection);    
     }
 
     pub fn deinit(self: *Chunk) void {

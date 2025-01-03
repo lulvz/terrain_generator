@@ -150,16 +150,18 @@ pub const Chunk = struct {
     }
 
     pub fn render(self: *Chunk, shader: rl.Shader, texture: rl.Texture) void {
-        const matModelView = rl.rlGetMatrixModelview();
-        const matProjection = rl.rlGetMatrixProjection();
-        const matModelViewProjection = rl.MatrixMultiply(matModelView, matProjection);
+        // const matModelView = rl.rlGetMatrixModelview();
+        // const matProjection = rl.rlGetMatrixProjection();
+        // const matModelViewProjection = rl.MatrixMultiply(matModelView, matProjection);
 
-        const mvpLoc = rl.GetShaderLocation(shader, "mvp");
-        rl.SetShaderValueMatrix(shader, mvpLoc, matModelViewProjection);
+        _ = texture;
+        // // Set up texture
+        // const texLoc = rl.GetShaderLocation(shader, "texture0");
+        // rl.rlSetUniformSampler(texLoc, texture.id);
 
-        // Set up texture
-        const texLoc = rl.GetShaderLocation(shader, "texture0");
-        rl.rlSetUniformSampler(texLoc, texture.id);
+        // const mvpLoc = rl.GetShaderLocation(shader, "mvp");
+        // rl.SetShaderValueMatrix(shader, mvpLoc, matModelViewProjection);
+
         // Set up wpos
         const wposLoc = rl.GetShaderLocation(shader, "wpos");
         rl.SetShaderValueV(shader, wposLoc, &self.wpos, rl.SHADER_UNIFORM_VEC3, 1);
@@ -186,9 +188,6 @@ pub const Chunk = struct {
         }
 
         rl.glDrawElements(rl.GL_TRIANGLES, @intCast(self.mesh.vertex_count), rl.GL_UNSIGNED_INT, null);
-        rl.glBindVertexArray(0);
-        rl.glBindBuffer(rl.GL_ARRAY_BUFFER, 0);
-        rl.glBindBuffer(rl.GL_ELEMENT_ARRAY_BUFFER, 0);
     }
 
     pub fn deinit(self: *Chunk) void {

@@ -28,9 +28,33 @@ pub const ChunkManager = struct {
     }
 
     pub fn render(self: *ChunkManager) void {
+        rl.rlEnableShader(self.shader.id);
+        // Set up texture
+        const texLoc = rl.GetShaderLocation(self.shader, "texture0");
+        rl.rlSetUniformSampler(texLoc, self.texture.id);
+
+        const matModelView = rl.rlGetMatrixModelview();
+        const matProjection = rl.rlGetMatrixProjection();
+        const matModelViewProjection = rl.MatrixMultiply(matModelView, matProjection);
+
+        const mvpLoc = rl.GetShaderLocation(self.shader, "mvp");
+        rl.SetShaderValueMatrix(self.shader, mvpLoc, matModelViewProjection);
+
         for (self.chunks.items) |chunk| {
+
             chunk.render(self.shader, self.texture);
         }
+
+        rl.rlDisableVertexArray();
+        rl.rlDisableVertexBuffer();
+        rl.rlDisableVertexBufferElement();
+
+        // Disable shader program
+        rl.rlDisableShader();
+
+        // Restore rlgl internal modelview and projection matrices
+        rl.rlSetMatrixModelview(matModelView);
+        rl.rlSetMatrixProjection(matProjection);
     }
 
     pub fn deinit(self: *ChunkManager) void {

@@ -41,6 +41,7 @@ pub fn main() !void {
             try chunk_manager.createChunk(x, z);
         }
     }
+    chunk_manager.bindData();
     
     // rl.SetTargetFPS(60);
     while(!rl.WindowShouldClose()) {

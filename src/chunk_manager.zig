@@ -3,7 +3,7 @@ const rl = @import("rl.zig");
 
 const chunk = @import("chunk.zig");
 
-const CHUNK_AMOUNT = 40*40;
+const CHUNK_AMOUNT = 10*10;
 
 const Vec3Padded = struct {
     x: f32,
@@ -87,16 +87,16 @@ pub const ChunkManager = struct {
         rl.glBindVertexArray(self.VAO);
 
         rl.glBindBuffer(rl.GL_ARRAY_BUFFER, self.VBO);
-        rl.glBufferData(rl.GL_ARRAY_BUFFER, @intCast(self.shared_vertex_info_idx * @sizeOf(u32)), self.shared_vertex_info.ptr, rl.GL_STATIC_DRAW);
+        rl.glBufferData(rl.GL_ARRAY_BUFFER, @intCast(self.shared_vertex_info_idx * @sizeOf(u32)), self.shared_vertex_info.ptr, rl.GL_DYNAMIC_DRAW);
         rl.glVertexAttribIPointer(0, 1, rl.GL_UNSIGNED_INT, 0, null);
         rl.glEnableVertexAttribArray(0);
 
         rl.glBindBuffer(rl.GL_ELEMENT_ARRAY_BUFFER, self.EBO);
-        rl.glBufferData(rl.GL_ELEMENT_ARRAY_BUFFER, @intCast(self.shared_indices_idx * @sizeOf(u32)), self.shared_indices.ptr, rl.GL_STATIC_DRAW);
+        rl.glBufferData(rl.GL_ELEMENT_ARRAY_BUFFER, @intCast(self.shared_indices_idx * @sizeOf(u32)), self.shared_indices.ptr, rl.GL_DYNAMIC_DRAW);
 
 
         rl.glBindBuffer(rl.GL_UNIFORM_BUFFER, self.UBO);
-        rl.glBufferData(rl.GL_UNIFORM_BUFFER, @intCast(self.shared_wpos_idx * @sizeOf(Vec3Padded)), self.shared_wpos.ptr, rl.GL_STATIC_DRAW);
+        rl.glBufferData(rl.GL_UNIFORM_BUFFER, @intCast(self.shared_wpos_idx * @sizeOf(Vec3Padded)), self.shared_wpos.ptr, rl.GL_DYNAMIC_DRAW);
         rl.glBindBufferBase(rl.GL_UNIFORM_BUFFER, 0, self.UBO);
 
         rl.glBindVertexArray(0);

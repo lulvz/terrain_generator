@@ -3,23 +3,20 @@ layout(location = 0) in int vertexInfo;    // Input info for each vertex
 uniform mat4 mvp;
 
 layout (std140) uniform ChunkData {
-    vec3 wpos[40*40];
+    vec3 wpos[10*10];
 };
 
 out vec3 fragPosition;                         // Pass to the fragment shader
 // out vec2 vBary;
 
-
 int gridSize = 64;
 
 void main() {
     // Calculate quad index and vertex within the quad
-    int quadIndex = (gl_VertexID / 4) % (gridSize*gridSize); // Each quad has 4 vertices
-    int vertexInQuad = gl_VertexID % 4; // Vertex index within the quad
+    int vertexInQuad = gl_VertexID & 3;  // Use bitwise AND for faster modulo
+    int quadIndex = (gl_VertexID >> 2) & (gridSize*gridSize - 1); // Use bitwise for division by 4
 
-    // Extract grid x and z positions based on the quad layout
-    int x, z;
-
+    int x,z;
     if (vertexInQuad == 0) {
         x = quadIndex % gridSize; // First vertex of quad
         z = quadIndex / gridSize;
@@ -51,6 +48,7 @@ void main() {
     // }
     
     // Construct the vertex position using the input height
+    // vec3 vertexPosition = wpos[gl_VertexID/(gridSize*gridSize*4)] + vec3(float(x), heightf, float(z));
     vec3 vertexPosition = wpos[gl_VertexID/(gridSize*gridSize*4)] + vec3(float(x), heightf, float(z));
     
     // Pass data to fragment shader

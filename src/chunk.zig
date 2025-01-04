@@ -34,19 +34,19 @@ pub const Chunk = struct {
     tile_map: [CHUNK_SIZE][CHUNK_SIZE]u12,
 
     pub fn init(wpos: rl.Vector3) Chunk {
-        const chunk = Chunk{
+        var chunk = Chunk{
             .wpos = wpos,
             .height_map = std.mem.zeroes([CHUNK_SIZE_VERTICES][CHUNK_SIZE_VERTICES]u8),
             .tile_map = std.mem.zeroes([CHUNK_SIZE][CHUNK_SIZE]u12),
         };
 
         // Initialize height_map and tile_map
-        // for (0..CHUNK_SIZE_VERTICES) |x| {
-        //     for (0..CHUNK_SIZE_VERTICES) |z| {
-        //         chunk.height_map[x][z] = @intCast(x + z); // Example height map data
-        //         // chunk.tile_map[x][z] = @intCast((x+z)%4);
-        //     }
-        // }
+        for (0..CHUNK_SIZE_VERTICES-1) |x| {
+            for (0..CHUNK_SIZE_VERTICES-1) |z| {
+                // chunk.height_map[x][z] = @intCast(x + z); // Example height map data
+                chunk.tile_map[x][z] = @intCast((x+z)%4);
+            }
+        }
         return chunk;
     }
 

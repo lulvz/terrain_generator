@@ -1,54 +1,60 @@
 #version 330 core
-layout(location = 0) in int vertexInfo;    // Input info for each vertex
+layout(location = 0) in int vertexInfo;
 uniform mat4 mvp;
-
 layout (std140) uniform ChunkData {
     vec3 wpos[10*10];
 };
+out vec3 fragPosition;
+out vec2 fragTexCoord;  // Added output for texture coordinates
 
-out vec3 fragPosition;                         // Pass to the fragment shader
-// out vec2 vBary;
-
-int gridSize = 64;
+const int gridSize = 64;
+const float atlasSize = 2;  // Total size of texture atlas in tiles per side
+const float normalizedTextureSize = 1/atlasSize;  // Size of one texture in normalized coordinates
 
 void main() {
-    // Calculate quad index and vertex within the quad
-    int vertexInQuad = gl_VertexID & 3;  // Use bitwise AND for faster modulo
-    int quadIndex = (gl_VertexID >> 2) & (gridSize*gridSize - 1); // Use bitwise for division by 4
-
-    int x,z;
+    int vertexInQuad = gl_VertexID & 3;
+    int quadIndex = (gl_VertexID >> 2) & (gridSize*gridSize - 1);
+    int x, z;
+    float texU, texV;  // Texture coordinates within a single tile
+    
+    // Calculate vertex position and texture coordinates based on vertex position in quad
     if (vertexInQuad == 0) {
-        x = quadIndex % gridSize; // First vertex of quad
+        x = quadIndex % gridSize;
         z = quadIndex / gridSize;
+        texU = 0.0;
+        texV = 0.0;
     } else if (vertexInQuad == 1) {
-        x = quadIndex % gridSize; // Second vertex
+        x = quadIndex % gridSize;
         z = (quadIndex / gridSize) + 1;
+        texU = 0.0;
+        texV = 1.0;
     } else if (vertexInQuad == 2) {
-        x = (quadIndex % gridSize) + 1; // Third vertex
+        x = (quadIndex % gridSize) + 1;
         z = quadIndex / gridSize;
-    } else if (vertexInQuad == 3) {
-        x = (quadIndex % gridSize) + 1; // Sixth vertex
+        texU = 1.0;
+        texV = 0.0;
+    } else {  // vertexInQuad == 3
+        x = (quadIndex % gridSize) + 1;
         z = (quadIndex / gridSize) + 1;
+        texU = 1.0;
+        texV = 1.0;
     }
+    
     // Unpack vertex information
     float heightf = float(vertexInfo & 0xFF);
     uint textureId = uint((vertexInfo >> 8) & 0xFFF);
     uint pitch = uint((vertexInfo >> 20) & 0x3F);
     uint yaw = uint((vertexInfo >> 26) & 0x3F);
-    // float heightf = float(height);
     
-    // Calculate barycentric coordinates
-    // int vertexInTriangle = gl_VertexID % 3; // Vertex index within the triangle
-    // if (vertexInTriangle == 0) {
-    //     vBary = vec2(1.0, 0.0); // First vertex
-    // } else if (vertexInTriangle == 1) {
-    //     vBary = vec2(0.0, 1.0); // Second vertex
-    // } else { // vertexInTriangle == 2
-    //     vBary = vec2(0.0, 0.0); // Third vertex
-    // }
+    // Calculate texture atlas coordinates
+    float tileX = float(textureId % uint(atlasSize));
+    float tileY = float(textureId / uint(atlasSize));
+    
+    // Calculate final texture coordinates
+    vec2 tileOffset = vec2(tileX, tileY) * normalizedTextureSize;
+    fragTexCoord = tileOffset + vec2(texU, texV) * normalizedTextureSize;
     
     // Construct the vertex position using the input height
-    // vec3 vertexPosition = wpos[gl_VertexID/(gridSize*gridSize*4)] + vec3(float(x), heightf, float(z));
     vec3 vertexPosition = wpos[gl_VertexID/(gridSize*gridSize*4)] + vec3(float(x), heightf, float(z));
     
     // Pass data to fragment shader

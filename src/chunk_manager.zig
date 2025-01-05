@@ -3,7 +3,7 @@ const rl = @import("rl.zig");
 
 const chunk = @import("chunk.zig");
 
-const CHUNK_AMOUNT = 10*10;
+const CHUNK_AMOUNT = 2*2;
 
 const Vec3Padded = struct {
     x: f32,
@@ -35,7 +35,7 @@ pub const ChunkManager = struct {
         var cm = ChunkManager{
             .allocator = allocator,
             .shader = rl.LoadShader("resources/terrain_indices_batch.vs", "resources/terrain_indices_batch.fs"),
-            .texture = rl.LoadTexture("atlas_2x2.png"),
+            .texture = rl.LoadTexture("fd_atlas.png"),
             .chunks = std.ArrayList(*chunk.Chunk).init(allocator),
 
             .shared_vertex_info = try allocator.alloc(u32, CHUNK_AMOUNT * chunk.MAX_VERTICES),
@@ -60,10 +60,14 @@ pub const ChunkManager = struct {
         return cm;
     }
 
-    pub fn createChunk(self: *ChunkManager, wx: i32, wz: i32) !void {
+    // wy has the same scale as the height value in a 
+    pub fn createChunk(self: *ChunkManager, wx: i32, wy: i32, wz: i32) !void {
         if(self.shared_vertex_info_idx <= ((CHUNK_AMOUNT * chunk.MAX_VERTICES) - chunk.MAX_VERTICES)) {
             const c = try self.allocator.create(chunk.Chunk);
-            c.* = chunk.Chunk.init(rl.Vector3{.x = @floatFromInt(wx*chunk.CHUNK_SIZE), .y = 0.0, .z = @floatFromInt(wz*chunk.CHUNK_SIZE)});
+                
+            const heightf: f32 = @floatFromInt(wy);
+            const height_scaled: f32 = (heightf / chunk.MAX_HEIGHTMAP_VALUE) * 64.0;
+            c.* = chunk.Chunk.init(rl.Vector3{.x = @floatFromInt(wx*chunk.CHUNK_SIZE), .y = height_scaled, .z = @floatFromInt(wz*chunk.CHUNK_SIZE)});
             try c.generateMesh(
                 self.shared_vertex_info[self.shared_vertex_info_idx..self.shared_vertex_info_idx+chunk.MAX_VERTICES],
                 self.shared_indices[self.shared_indices_idx..self.shared_indices_idx+chunk.MAX_INDICES]

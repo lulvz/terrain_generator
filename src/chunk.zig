@@ -17,7 +17,6 @@ const ChunkMesh = struct {
     vertex_count: i32,
 };
 
-// TODO MAKE THIS HOLD ALL THE INFORMATION FOR A SINGLE VERTEX
 const chunkVertexInformation = packed struct(u32) {
     height: u8,
     texture_id: u12, // total of 4096 textures in a 2048x2048 texture atlas
@@ -25,8 +24,7 @@ const chunkVertexInformation = packed struct(u32) {
     normal_yaw: u6,
 };
 
-// amount of tiles per side in the tilemap HAS TO BE CHANGED
-const TILE_MAP_SIZE: comptime_int = 2;
+const TILE_MAP_SIZE: comptime_int = 64;
 
 pub const Chunk = struct {
     wpos: rl.Vector3,
@@ -44,7 +42,8 @@ pub const Chunk = struct {
         for (0..CHUNK_SIZE_VERTICES-1) |x| {
             for (0..CHUNK_SIZE_VERTICES-1) |z| {
                 // chunk.height_map[x][z] = @intCast(x + z); // Example height map data
-                chunk.tile_map[x][z] = @intCast((x+z)%4);
+                // chunk.tile_map[x][z] = @intCast((x+z)%4);
+                chunk.tile_map[x][z] = 2;
             }
         }
         return chunk;
@@ -98,34 +97,6 @@ pub const Chunk = struct {
             }
         }
 
-        // var VAO: [1]c_uint = undefined;
-        // var VBO: [1]c_uint = undefined;
-        // var EBO: [1]c_uint = undefined;
-
-        // rl.glGenVertexArrays(1, &VAO);
-        // rl.glGenBuffers(1, &VBO);
-        // rl.glGenBuffers(1, &EBO);
-
-        // rl.glBindVertexArray(VAO[0]);
-
-        // // Buffer packed vertex data
-        // rl.glBindBuffer(rl.GL_ARRAY_BUFFER, VBO[0]);
-        // rl.glBufferData(rl.GL_ARRAY_BUFFER, @sizeOf(@TypeOf(vertex_info)), &vertex_info, rl.GL_STATIC_DRAW);
-        // rl.glVertexAttribIPointer(0, 1, rl.GL_UNSIGNED_INT, 0, null);
-        // rl.glEnableVertexAttribArray(0);
-
-        // // Buffer indices
-        // rl.glBindBuffer(rl.GL_ELEMENT_ARRAY_BUFFER, EBO[0]);
-        // rl.glBufferData(rl.GL_ELEMENT_ARRAY_BUFFER, @intCast(indices.len * @sizeOf(u32)), &indices, rl.GL_STATIC_DRAW);
-
-        // rl.glBindVertexArray(0);
-
-        // self.mesh = ChunkMesh{
-        //     .vao = VAO[0],
-        //     .vbo = [2]c_uint{ VBO[0], 0 },
-        //     .ebo = EBO[0],
-        //     .vertex_count = @intCast(iCounter),
-        // };
     }
 
     // pub fn render(self: *Chunk, shader: rl.Shader) void {

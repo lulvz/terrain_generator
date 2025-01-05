@@ -2,13 +2,13 @@
 layout(location = 0) in int vertexInfo;
 uniform mat4 mvp;
 layout (std140) uniform ChunkData {
-    vec3 wpos[10*10];
+    vec3 wpos[2*2];
 };
 out vec3 fragPosition;
 out vec2 fragTexCoord;  // Added output for texture coordinates
 
 const int gridSize = 64;
-const float atlasSize = 2;  // Total size of texture atlas in tiles per side
+const float atlasSize = 64;  // Total size of texture atlas in tiles per side
 const float normalizedTextureSize = 1/atlasSize;  // Size of one texture in normalized coordinates
 
 void main() {
@@ -42,6 +42,7 @@ void main() {
     
     // Unpack vertex information
     float heightf = float(vertexInfo & 0xFF);
+    float height_scaled = (heightf / 255.0) * 64.0;
     uint textureId = uint((vertexInfo >> 8) & 0xFFF);
     uint pitch = uint((vertexInfo >> 20) & 0x3F);
     uint yaw = uint((vertexInfo >> 26) & 0x3F);
@@ -55,7 +56,7 @@ void main() {
     fragTexCoord = tileOffset + vec2(texU, texV) * normalizedTextureSize;
     
     // Construct the vertex position using the input height
-    vec3 vertexPosition = wpos[gl_VertexID/(gridSize*gridSize*4)] + vec3(float(x), heightf, float(z));
+    vec3 vertexPosition = wpos[gl_VertexID/(gridSize*gridSize*4)] + vec3(float(x), height_scaled, float(z));
     
     // Pass data to fragment shader
     fragPosition = vertexPosition;

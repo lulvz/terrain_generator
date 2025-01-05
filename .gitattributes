@@ -1,1 +1,4 @@
 lib/glad/* linguist-vendored
+lib/glad/include/glad/* linguist-vendored
+lib/glad/include/KHR/* linguist-vendored
+lib/glad/src/* linguist-vendored

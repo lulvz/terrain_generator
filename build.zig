@@ -23,22 +23,8 @@ pub fn build(b: *std.Build) void {
     exe.linkLibrary(raylib.artifact("raylib"));
     exe.linkLibC();
 
-
     exe.addIncludePath(b.path("./lib/glad/include/"));
-    // exe.addCSourceFiles(.{.root = b.path("./lib/glad/src/"), .files = &.{"gl.c"}});
-    // exe.linkSystemLibrary("GL");
-
-
-    // const gl_bindings = @import("zigglgen").generateBindingsModule(b, .{
-    //     .api = .gl,
-    //     .version = .@"3.3",
-    //     .profile = .core,
-    //     .extensions = &.{ .ARB_clip_control, .NV_scissor_exclusive },
-    // });
-
-    // // Import the generated module.
-    // exe.root_module.addImport("gl", gl_bindings);
-
+    
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);

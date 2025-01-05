@@ -3,7 +3,7 @@ const rl = @import("rl.zig");
 // const chunk = @import("chunk.zig");
 const ChunkManager = @import("chunk_manager.zig").ChunkManager;
 
-const CHUNK_AMOUNT = 5;
+const CHUNK_AMOUNT = 1;
 
 fn drawAxisLines() void {
     const origin = rl.Vector3{ .x = 0.0, .y = 0.0, .z = 0.0 };
@@ -21,11 +21,11 @@ pub fn main() !void {
     defer rl.CloseWindow();
 
     var camera: rl.Camera3D = undefined;
-    camera.position = rl.Vector3{ .x=-10.0, .y=2.0, .z=-10.0 }; // Camera position
-    camera.target = rl.Vector3{ .x=0, .y=10.0, .z=3 };      // Camera looking at point
-    camera.up = rl.Vector3{ .x=0.0, .y=1.0, .z=0.0 };          // Camera up vector (rotation towards target)
-    camera.fovy = 75.0;                                // Camera field-of-view Y
-    camera.projection = rl.CAMERA_PERSPECTIVE;             // Camera projection type
+    camera.position = rl.Vector3{ .x = -24.0, .y = 21.0, .z = -24.0 }; // Position the camera
+    camera.target = rl.Vector3{ .x = 0.0, .y = 0.0, .z = 0.0 }; // Look at the origin
+    camera.up = rl.Vector3{ .x = 0.0, .y = 1.0, .z = 0.0 }; // Set the up vector
+    camera.fovy = 10.0; // Field of view
+    camera.projection = rl.CAMERA_ORTHOGRAPHIC; // Set the camera type to orthographic
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
@@ -38,22 +38,30 @@ pub fn main() !void {
     while(x < CHUNK_AMOUNT) : (x+=1) {
         var z: i32 = -CHUNK_AMOUNT;
         while(z < CHUNK_AMOUNT) : (z+=1) {
-            try chunk_manager.createChunk(x, z);
+            // 255 because it's 255 degrees of freedom between 0 and 1
+            // so 64 units up would be 255
+            // and we can make a function for this, so it would be chunk_amount*255 + [0-255]
+            try chunk_manager.createChunk(x, (255*0) + 0, z);
         }
     }
     chunk_manager.bindData();
+
+    // const t = rl.LoadTexture("dirt.png");
     
-    // rl.SetTargetFPS(60);
+    // rl.SetTargetFPS(144);
     while(!rl.WindowShouldClose()) {
         // UPDATE THINGS
-        rl.UpdateCamera(&camera, rl.CAMERA_FIRST_PERSON);
+        rl.UpdateCamera(&camera, rl.CAMERA_ORBITAL);
+        rl.DisableCursor();
 
         // DRAW THINGS
         rl.BeginDrawing();
         defer rl.EndDrawing();
-        rl.ClearBackground(rl.BLACK);
+        rl.ClearBackground(.{.r = 0xA1, .g = 0xCD, .b = 0xF4, .a = 0xFF});
  
         rl.BeginMode3D(camera);
+        // rl.DrawBillboard(camera, t, .{.x = 0, .y = 0, .z = 0}, 4.0, rl.WHITE);
+        rl.DrawCubeV(.{.x = 0.5, .y = 0.5, .z = 0.5}, .{.x=1, .y=1, .z=1}, rl.WHITE);
 
         chunk_manager.render();
 
@@ -61,4 +69,5 @@ pub fn main() !void {
         rl.EndMode3D();
         rl.DrawFPS(10, 10);
     }
+    try chunk_manager.writeChunks("chunks");
 }

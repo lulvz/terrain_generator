@@ -69,4 +69,5 @@ pub fn main() !void {
         rl.EndMode3D();
         rl.DrawFPS(10, 10);
     }
+    try chunk_manager.writeChunks("chunks");
 }

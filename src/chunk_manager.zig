@@ -60,18 +60,24 @@ pub const ChunkManager = struct {
         return cm;
     }
 
-    // wy has the same scale as the height value in a 
-    pub fn createChunk(self: *ChunkManager, wx: i32, wy: i32, wz: i32) !void {
+    // 
+    pub fn createChunk(self: *ChunkManager, dir_path: []const u8, wx: i32, wz: i32) !void {
         if(self.shared_vertex_info_idx <= ((CHUNK_AMOUNT * chunk.MAX_VERTICES) - chunk.MAX_VERTICES)) {
             const c = try self.allocator.create(chunk.Chunk);
-            
-            const co: ?chunk.Chunk = try self.readChunk("chunks", wx, wz);
-            if(co == null) {
-                c.* = chunk.Chunk.init(wx, wy, wz);
-            } else {
-                c.* = co.?;
-            }
 
+            c.* = chunk.Chunk.init(wx, wz);
+
+            var filename_buffer: [128]u8 = undefined;
+            const file_name = try std.fmt.bufPrint(
+                &filename_buffer,
+                "{s}/chunk_{d}_{d}.dat",
+                .{ dir_path, wx, wz }
+            );
+
+            // for now we ignore the return value, but it returns true/false when it manages to read a chunk or doesn't find the file
+            _ = try c.loadChunk(file_name);
+
+            // this uses the fields contained within the chunk to generate the vbo/ebo into the passed slices
             try c.generateMesh(
                 self.shared_vertex_info[self.shared_vertex_info_idx..self.shared_vertex_info_idx+chunk.MAX_VERTICES],
                 self.shared_indices[self.shared_indices_idx..self.shared_indices_idx+chunk.MAX_INDICES]
@@ -160,64 +166,21 @@ pub const ChunkManager = struct {
     }
 
     pub fn writeChunks(self: *ChunkManager, dir_path: []const u8) !void {
-        // Create directory if it doesn't exist
+        // try to create the directory
         try std.fs.cwd().makePath(dir_path);
 
         for (self.chunks.items) |c| {
-            // Create filename based on chunk coordinates
+            // ---
             var filename_buffer: [128]u8 = undefined;
-            const filename = try std.fmt.bufPrint(
+            const file_name = try std.fmt.bufPrint(
                 &filename_buffer,
                 "{s}/chunk_{d}_{d}.dat",
                 .{ dir_path, c.wx, c.wz }
             );
 
-            // Open file for writing
-            const file = try std.fs.cwd().createFile(
-                filename,
-                .{ .read = true, .truncate = true }
-            );
-            defer file.close();
-
-            // Create buffered writer for better performance
-            var buffered_writer = std.io.bufferedWriter(file.writer());
-            var writer = buffered_writer.writer();
-
-            // Write chunk coordinates
-            try writer.writeAll(&c.height_map);
-
-            // Flush the buffered writer
-            try buffered_writer.flush();
+            try c.saveChunk(file_name);
+            // ---
         }
-    }
-
-    pub fn readChunk(self: *ChunkManager, dir_path: []const u8, wx: i32, wz: i32) !?chunk.Chunk {
-        _ = self;
-        var filename_buffer: [128]u8 = undefined;
-        const filename = try std.fmt.bufPrint(
-            &filename_buffer,
-            "{s}/chunk_{d}_{d}.dat",
-            .{ dir_path, wx, wz }
-        );
-
-        // Try to open the file
-        const file = std.fs.cwd().openFile(filename, .{}) catch |err| switch (err) {
-            error.FileNotFound => return null,
-            else => return err,
-        };
-        defer file.close();
-
-        var buffered_reader = std.io.bufferedReader(file.reader());
-        var reader = buffered_reader.reader();
-
-        // Initialize the chunk
-        var c = chunk.Chunk.init(wx, 0, wz);
-
-        // Read height map and tile map data
-        _ = try reader.readAll(&c.height_map);
-        // _ = try reader.readAll(std.mem.sliceAsBytes(&c.tile_map));
-
-        return c;
     }
 
     pub fn deinit(self: *ChunkManager) void {

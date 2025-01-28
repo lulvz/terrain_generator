@@ -1,5 +1,5 @@
 #version 330 core
-layout(location = 0) in int vertexInfo;
+layout(location = 0) in ivec2 vertexInfo;
 uniform mat4 mvp;
 layout (std140) uniform ChunkData {
     vec3 wpos[2*2];

@@ -38,10 +38,7 @@ pub fn main() !void {
     while(x < CHUNK_AMOUNT) : (x+=1) {
         var z: i32 = -CHUNK_AMOUNT;
         while(z < CHUNK_AMOUNT) : (z+=1) {
-            // 255 because it's 255 degrees of freedom between 0 and 1
-            // so 64 units up would be 255
-            // and we can make a function for this, so it would be chunk_amount*255 + [0-255]
-            try chunk_manager.createChunk(x, (255*0) + 0, z);
+            try chunk_manager.createChunk("chunks", x, z);
         }
     }
     chunk_manager.bindData();
@@ -60,7 +57,7 @@ pub fn main() !void {
         rl.ClearBackground(.{.r = 0xA1, .g = 0xCD, .b = 0xF4, .a = 0xFF});
  
         rl.BeginMode3D(camera);
-        // rl.DrawBillboard(camera, t, .{.x = 0, .y = 0, .z = 0}, 4.0, rl.WHITE);
+
         rl.DrawCubeV(.{.x = 0.5, .y = 0.5, .z = 0.5}, .{.x=1, .y=1, .z=1}, rl.WHITE);
 
         chunk_manager.render();

@@ -12,6 +12,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // link raylib
     const raylib = b.dependency("raylib", .{
         .raudio = true,
         .rmodels = true,
@@ -19,9 +20,16 @@ pub fn build(b: *std.Build) void {
         .rtext = true,
         .rtextures = true,
     });
-
     exe.linkLibrary(raylib.artifact("raylib"));
     exe.linkLibC();
+
+    // add simple noises module as import
+    const sn = b.dependency("simple-noises", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    const sn_module = sn.module("simple-noises");
+    exe.root_module.addImport("simple-noises", sn_module);
 
     exe.addIncludePath(b.path("./lib/glad/include/"));
     

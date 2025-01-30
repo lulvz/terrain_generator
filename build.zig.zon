@@ -27,9 +27,9 @@
             .url = "https://github.com/raysan5/raylib/archive/refs/tags/5.5.tar.gz",
             .hash = "1220d93782859726c2c46a05450615b7edfc82b7319daac50cbc7c3345d660b022d7",
         },
-        .zigglgen = .{
-            .url = "git+https://github.com/castholm/zigglgen#1c901bef6d312ef1814b8fce3c5a9e9e8e61ac2d",
-            .hash = "12209d8a018832bee15d9da29a12fa753d89b56cd843cdf1f39501546c6467e38ba1",
+        .@"simple-noises" = .{
+            .url = "git+https://github.com/lulvz/simple-noises.git/?ref=HEAD#b76e39709cb457777fcb049a73012bc1148f2ed4",
+            .hash = "1220ca7be0f1750e6161e19e18a03c4fad5550f45541835a0453edbd778fb0c3ab42",
         },
     },
 

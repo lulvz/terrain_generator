@@ -1,11 +1,12 @@
 const std = @import("std");
 const rl = @import("rl.zig");
+const sn = @import("simple-noises");
 
 const chunk = @import("chunk.zig");
 
 const CHUNK_AMOUNT = 2*2;
 
-const Vec3Padded = struct {
+const Vec3Padded = packed struct {
     x: f32,
     y: f32,
     z: f32,
@@ -60,7 +61,6 @@ pub const ChunkManager = struct {
         return cm;
     }
 
-    // 
     pub fn createChunk(self: *ChunkManager, dir_path: []const u8, wx: i32, wz: i32) !void {
         if(self.shared_vertex_info_idx <= ((CHUNK_AMOUNT * chunk.MAX_VERTICES) - chunk.MAX_VERTICES)) {
             const c = try self.allocator.create(chunk.Chunk);

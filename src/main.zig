@@ -1,6 +1,6 @@
 const std = @import("std");
 const rl = @import("rl.zig");
-// const chunk = @import("chunk.zig");
+
 const ChunkManager = @import("chunk_manager.zig").ChunkManager;
 
 const CHUNK_AMOUNT = 1;

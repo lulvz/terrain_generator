@@ -42,7 +42,7 @@ void main() {
     
     // Unpack vertex information
     float heightf = float(vertexInfo & 0xFF);
-    float height_scaled = (heightf / 255.0) * 10.0;
+    float height_scaled = (heightf / 255.0) * 32.0;
     uint textureId = uint((vertexInfo >> 8) & 0xFFF);
     uint pitch = uint((vertexInfo >> 20) & 0x3F);
     uint yaw = uint((vertexInfo >> 26) & 0x3F);

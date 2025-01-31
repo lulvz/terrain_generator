@@ -25,14 +25,15 @@ pub fn main() !void {
     camera.position = rl.Vector3{ .x = -24.0, .y = 1.0, .z = -24.0 }; // Position the camera
     camera.target = rl.Vector3{ .x = 0.0, .y = 0.0, .z = 0.0 }; // Look at the origin
     camera.up = rl.Vector3{ .x = 0.0, .y = 1.0, .z = 0.0 }; // Set the up vector
-    camera.fovy = 10.0; // Field of view
+    camera.fovy = 90.0; // Field of view
     camera.projection = rl.CAMERA_ORTHOGRAPHIC; // Set the camera type to orthographic
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    var chunk_manager: ChunkManager = try ChunkManager.init(allocator, 12);
+    const CM =ChunkManager(CHUNK_AMOUNT*CHUNK_AMOUNT*4);
+    var chunk_manager: ChunkManager(CHUNK_AMOUNT*CHUNK_AMOUNT*4) = try CM.init(allocator, 12);
     defer chunk_manager.deinit();
 
     var x: i32 = -CHUNK_AMOUNT;

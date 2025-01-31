@@ -28,8 +28,8 @@
             .hash = "1220d93782859726c2c46a05450615b7edfc82b7319daac50cbc7c3345d660b022d7",
         },
         .@"simple-noises" = .{
-            .url = "git+https://github.com/lulvz/simple-noises.git/?ref=HEAD#a2a3d6353c902491acab0507705b6b80628b47db",
-            .hash = "12202bf2cba5c3196263ed5d2499606bacc7d55d2de61347210fec7028e0e8f5fe50",
+            .url = "git+https://github.com/lulvz/simple-noises.git/?ref=HEAD#c403e992d7025f1a66b012de450a47d245f88458",
+            .hash = "1220bfb99571da57ebf51e0b26351b7b26c2d7879cb9bb956a73551ca3ed4852ecf3",
         },
     },
 

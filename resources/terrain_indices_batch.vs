@@ -1,5 +1,5 @@
 #version 330 core
-layout(location = 0) in ivec2 vertexInfo;
+layout(location = 0) in int vertexInfo;
 uniform mat4 mvp;
 layout (std140) uniform ChunkData {
     vec3 wpos[2*2];
@@ -19,23 +19,23 @@ void main() {
     
     // Calculate vertex position and texture coordinates based on vertex position in quad
     if (vertexInQuad == 0) {
-        x = quadIndex % gridSize;
-        z = quadIndex / gridSize;
+        x = quadIndex / gridSize;
+        z = quadIndex % gridSize;
         texU = 0.0;
         texV = 0.0;
     } else if (vertexInQuad == 1) {
-        x = quadIndex % gridSize;
-        z = (quadIndex / gridSize) + 1;
+        x = (quadIndex / gridSize);
+        z = (quadIndex % gridSize) + 1;
         texU = 0.0;
         texV = 1.0;
     } else if (vertexInQuad == 2) {
-        x = (quadIndex % gridSize) + 1;
-        z = quadIndex / gridSize;
+        x = (quadIndex / gridSize) + 1;
+        z = (quadIndex % gridSize);
         texU = 1.0;
         texV = 0.0;
     } else {  // vertexInQuad == 3
-        x = (quadIndex % gridSize) + 1;
-        z = (quadIndex / gridSize) + 1;
+        x = (quadIndex / gridSize) + 1;
+        z = (quadIndex % gridSize) + 1;
         texU = 1.0;
         texV = 1.0;
     }

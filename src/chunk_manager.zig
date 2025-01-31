@@ -19,6 +19,8 @@ pub const ChunkManager = struct {
     texture: rl.Texture,
     chunks: std.ArrayList(*chunk.Chunk),
 
+    noise_generator: sn.PerlinNoise2D(f64),
+
     shared_vertex_info: []u32,
     shared_indices: []u32,
     shared_wpos: []Vec3Padded,
@@ -32,12 +34,14 @@ pub const ChunkManager = struct {
     EBO: c_uint,
     UBO: c_uint,
 
-    pub fn init(allocator: std.mem.Allocator) !ChunkManager {
+    pub fn init(allocator: std.mem.Allocator, seed: u64) !ChunkManager {
         var cm = ChunkManager{
             .allocator = allocator,
             .shader = rl.LoadShader("resources/terrain_indices_batch.vs", "resources/terrain_indices_batch.fs"),
             .texture = rl.LoadTexture("fd_atlas.png"),
             .chunks = std.ArrayList(*chunk.Chunk).init(allocator),
+            
+            .noise_generator = sn.PerlinNoise2D(f64).init(seed, 0.01),
 
             .shared_vertex_info = try allocator.alloc(u32, CHUNK_AMOUNT * chunk.MAX_VERTICES),
             .shared_indices = try allocator.alloc(u32, CHUNK_AMOUNT * chunk.MAX_INDICES),
@@ -62,38 +66,41 @@ pub const ChunkManager = struct {
     }
 
     pub fn createChunk(self: *ChunkManager, dir_path: []const u8, wx: i32, wz: i32) !void {
-        if(self.shared_vertex_info_idx <= ((CHUNK_AMOUNT * chunk.MAX_VERTICES) - chunk.MAX_VERTICES)) {
-            const c = try self.allocator.create(chunk.Chunk);
+        if (!(self.shared_vertex_info_idx <= ((CHUNK_AMOUNT * chunk.MAX_VERTICES) - chunk.MAX_VERTICES))) return error.WrongSharedVBOSize;
 
-            c.* = chunk.Chunk.init(wx, wz);
+        // -------------------------- FILE LOADING --------------------------
+        const c = try self.allocator.create(chunk.Chunk);
 
-            var filename_buffer: [128]u8 = undefined;
-            const file_name = try std.fmt.bufPrint(
-                &filename_buffer,
-                "{s}/chunk_{d}_{d}.dat",
-                .{ dir_path, wx, wz }
-            );
+        c.* = chunk.Chunk.init(wx, wz);
 
-            // for now we ignore the return value, but it returns true/false when it manages to read a chunk or doesn't find the file
-            _ = try c.loadChunk(file_name);
+        var filename_buffer: [128]u8 = undefined;
+        const file_name = try std.fmt.bufPrint(
+            &filename_buffer,
+            "{s}/chunk_{d}_{d}.dat",
+            .{ dir_path, wx, wz }
+        );
 
-            // this uses the fields contained within the chunk to generate the vbo/ebo into the passed slices
-            try c.generateMesh(
-                self.shared_vertex_info[self.shared_vertex_info_idx..self.shared_vertex_info_idx+chunk.MAX_VERTICES],
-                self.shared_indices[self.shared_indices_idx..self.shared_indices_idx+chunk.MAX_INDICES]
-            );
-            // Apply the vertex offset to each index in the chunk
-            for (self.shared_indices[self.shared_indices_idx..self.shared_indices_idx+chunk.MAX_INDICES], 0..) |index, idx| {
-                self.shared_indices[self.shared_indices_idx..self.shared_indices_idx+chunk.MAX_INDICES][idx] = @intCast(index + self.shared_vertex_info_idx);
-            }
-            self.shared_wpos[self.shared_wpos_idx] = .{.x = c.wpos.x, .y = c.wpos.y, .z = c.wpos.z};
-
-            self.shared_vertex_info_idx += chunk.MAX_VERTICES;
-            self.shared_indices_idx += chunk.MAX_INDICES;
-            self.shared_wpos_idx += 1;
-            try self.chunks.append(c);
+        // if the chunk doesn't exist yet, generate it from the
+        if (!try c.loadChunk(file_name)) {
+            c.generateHeightMap(&self.noise_generator);
         }
-        // return error.WrongSharedVBOSize;
+        // -------------------------- END FILE LOADING --------------------------
+
+        // this uses the fields contained within the chunk to generate the vbo/ebo into the passed slices
+        try c.generateMesh(
+            self.shared_vertex_info[self.shared_vertex_info_idx..self.shared_vertex_info_idx+chunk.MAX_VERTICES],
+            self.shared_indices[self.shared_indices_idx..self.shared_indices_idx+chunk.MAX_INDICES]
+        );
+        // Apply the vertex offset to each index in the chunk
+        for (self.shared_indices[self.shared_indices_idx..self.shared_indices_idx+chunk.MAX_INDICES], 0..) |index, idx| {
+            self.shared_indices[self.shared_indices_idx..self.shared_indices_idx+chunk.MAX_INDICES][idx] = @intCast(index + self.shared_vertex_info_idx);
+        }
+        self.shared_wpos[self.shared_wpos_idx] = .{.x = c.wpos.x, .y = c.wpos.y, .z = c.wpos.z};
+
+        self.shared_vertex_info_idx += chunk.MAX_VERTICES;
+        self.shared_indices_idx += chunk.MAX_INDICES;
+        self.shared_wpos_idx += 1;
+        try self.chunks.append(c);
     }
 
     // TEMPORARY JUST TO TEST

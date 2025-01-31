@@ -1,6 +1,8 @@
 const std = @import("std");
 const rl = @import("rl.zig");
 
+const sn = @import("simple-noises");
+
 pub const MAX_HEIGHTMAP_VALUE = 255; // max u8
 
 pub const CHUNK_SIZE: comptime_int = 64;
@@ -27,7 +29,7 @@ pub const Chunk = struct {
     tile_map: [CHUNK_SIZE*CHUNK_SIZE]u12,
 
     pub fn init(wx: i32, wz: i32) Chunk {
-        var height_map = std.mem.zeroes([CHUNK_SIZE_VERTICES*CHUNK_SIZE_VERTICES]u8);
+        const height_map = std.mem.zeroes([CHUNK_SIZE_VERTICES*CHUNK_SIZE_VERTICES]u8);
         var tile_map = std.mem.zeroes([CHUNK_SIZE*CHUNK_SIZE]u12);
 
         const wpos = rl.Vector3{ 
@@ -36,24 +38,12 @@ pub const Chunk = struct {
             .z = @floatFromInt(wz * CHUNK_SIZE) 
         };
 
-
-        // --- THIS IS FOR TESTING PURPOSES ONLY, INIT SHOULD NOT POPULATE THESE FIELDS LIKE THIS
-        // Initialize height_map and tile_map
-        for (0..CHUNK_SIZE_VERTICES) |x| {
-            for (0..CHUNK_SIZE_VERTICES) |z| {
-                const height_index = getHeightMapIndex(x, z);
-                height_map[height_index] = 0; // Example height map data
-            }
-        }
-
         for(0..CHUNK_SIZE) |x| {
             for(0..CHUNK_SIZE) |z| {
                 const tile_index = getTileMapIndex(x, z);
                 tile_map[tile_index] = 1;
             }
         }
-        // ---
-
 
         return Chunk{
             .wx = wx,
@@ -71,6 +61,19 @@ pub const Chunk = struct {
 
     fn getTileMapIndex(x: usize, z: usize) usize {
         return x * CHUNK_SIZE + z;
+    }
+
+    pub fn generateHeightMap(self: *Chunk, noise_generator: *sn.PerlinNoise2D(f64)) void {
+        for(0..CHUNK_SIZE_VERTICES) |x| {
+            for(0..CHUNK_SIZE_VERTICES) |z| {
+                const idx = getHeightMapIndex(x, z);
+                // Add the chunk's world position to the coordinates
+                const world_x: f64 = @floatFromInt(self.wx * CHUNK_SIZE + @as(i32, @intCast(x)));
+                const world_z: f64 = @floatFromInt(self.wz * CHUNK_SIZE + @as(i32, @intCast(z)));
+                const height_fraction: f64 = (noise_generator.generate(world_x, world_z) + 1.0) / 2.0;
+                self.height_map[idx] = @intFromFloat(height_fraction * 255.0);
+            }
+        }
     }
 
     // TODO MAKE THIS GENERATE THE MESH USING A PORTION OF A PERLIN NOISE MAP, ACCORDING TO ITS WORLD POSITION
@@ -100,6 +103,8 @@ pub const Chunk = struct {
                 info.height = self.height_map[getHeightMapIndex(x + 1, z + 1)];
                 vertex_info[vCounter + 3] = @bitCast(info);
 
+                // TODO possible optimization: since the indices are always the same
+                // maybe store them at comptime and don't compute them everytime
                 // First triangle (top-left, bottom-left, top-right)
                 indices[iCounter] = @intCast(vCounter);
                 indices[iCounter + 1] = @intCast(vCounter + 1);

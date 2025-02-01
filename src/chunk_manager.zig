@@ -41,7 +41,7 @@ pub fn ChunkManager(comptime chunk_amount: comptime_int) type {
                 .texture = rl.LoadTexture("fd_atlas.png"),
                 .chunks = std.ArrayList(*chunk.Chunk).init(allocator),
                 
-                .noise_generator = sn.PerlinNoise2D(f64).init(seed, 0.03),
+                .noise_generator = sn.PerlinNoise2D(f64).init(seed, 0.009),
 
                 .shared_vertex_info = try allocator.alloc(u32, chunk_amount * chunk.MAX_VERTICES),
                 .shared_indices = try allocator.alloc(u32, chunk_amount * chunk.MAX_INDICES),

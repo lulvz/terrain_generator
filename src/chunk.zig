@@ -89,7 +89,7 @@ pub const Chunk = struct {
                 var info = chunkVertexInformation{
                     .height = self.height_map[getHeightMapIndex(x, z)],
                     .texture_id = self.tile_map[getTileMapIndex(x, z)],
-                    .normal_pitch = 32, // Default to straight up
+                    .normal_pitch = 32, // TODO MAKE THIS PASS THE CORRECT PITCH AND YAW VALUES
                     .normal_yaw = 0,
                 };
                 vertex_info[vCounter] = @bitCast(info);

@@ -1,8 +1,12 @@
 #version 330 core
+
+uniform sampler2D texture0;
+
 in vec3 fragPosition;
 in vec2 fragTexCoord;
+in vec3 fragNormal;
+
 out vec4 finalColor;
-uniform sampler2D texture0;
 
 void main() {
     // Sample the texture using the calculated texture coordinates

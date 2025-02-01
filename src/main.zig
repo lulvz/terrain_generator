@@ -3,7 +3,7 @@ const rl = @import("rl.zig");
 
 const ChunkManager = @import("chunk_manager.zig").ChunkManager;
 
-const CHUNK_AMOUNT = 1;
+const CHUNK_AMOUNT = 3;
 
 fn drawAxisLines() void {
     const origin = rl.Vector3{ .x = 0.0, .y = 0.0, .z = 0.0 };
@@ -22,11 +22,12 @@ pub fn main() !void {
 
     var camera: rl.Camera3D = undefined;
     // camera.position = rl.Vector3{ .x = -24.0, .y = 21.0, .z = -24.0 }; // Position the camera
-    camera.position = rl.Vector3{ .x = -24.0, .y = 1.0, .z = -24.0 }; // Position the camera
+    camera.position = rl.Vector3{ .x = -2.0, .y = 33.0, .z = -2.0 }; // Position the camera
     camera.target = rl.Vector3{ .x = 0.0, .y = 0.0, .z = 0.0 }; // Look at the origin
     camera.up = rl.Vector3{ .x = 0.0, .y = 1.0, .z = 0.0 }; // Set the up vector
     camera.fovy = 90.0; // Field of view
-    camera.projection = rl.CAMERA_ORTHOGRAPHIC; // Set the camera type to orthographic
+    // camera.projection = rl.CAMERA_ORTHOGRAPHIC; // Set the camera type to orthographic
+    camera.projection = rl.CAMERA_PERSPECTIVE;
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();

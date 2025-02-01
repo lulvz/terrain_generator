@@ -30,6 +30,7 @@ At some point in the development of the terrain generator, a triangle strip was 
 Simply do `zig build run`, and dependencies should be fetched automatically and the app should run.
 
 Chunks are currently being saved on **quit event**. If you want to generate new chunks, simply delete the .dat files in the chunks directory and when you run the program again it will detect there are no saved chunks and create new ones.
+
 The perlin noise **seed** (located in [chunk_manager](src/chunk_manager.zig)) is currently set to a fixed number (12), so even if a 2 by 2 chunk region is rendered first and saved, if in the next run a 4 by 4 region is rendered, the old chunks will be read from the files, and the new ones will be generated using the same seed as the old ones, keeping continuity between generated chunks. This can be expanded in the future to generate multiple worlds, each world with it's own seed.
 To edit the number of chunks to render, edit the `const CHUNK_AMOUNT` value in [main.zig](src/main.zig), this is the amount of chunks to be rendered in each axis direction.
 

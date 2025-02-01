@@ -34,6 +34,12 @@ Chunks are currently being saved on **quit event**. If you want to generate new 
 The perlin noise **seed** (located in [chunk_manager](src/chunk_manager.zig)) is currently set to a fixed number (12), so even if a 2 by 2 chunk region is rendered first and saved, if in the next run a 4 by 4 region is rendered, the old chunks will be read from the files, and the new ones will be generated using the same seed as the old ones, keeping continuity between generated chunks. This can be expanded in the future to generate multiple worlds, each world with it's own seed.
 To edit the number of chunks to render, edit the `const CHUNK_AMOUNT` value in [main.zig](src/main.zig), this is the amount of chunks to be rendered in each axis direction.
 
+## Screenshot
+
+![screenshot](img/screenshot.png)
+
+Disclaimer: There is still no lighting, so it looks a bit rough, but the focus of the project was on optimizing rendering not making it beautiful
+
 ## Things left to do
 
 - Reading tiles from the .dat files into the u12 tile buffer

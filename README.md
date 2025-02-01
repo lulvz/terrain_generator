@@ -38,7 +38,7 @@ To edit the number of chunks to render, edit the `const CHUNK_AMOUNT` value in [
 
 ![screenshot](img/screenshot.png)
 
-Disclaimer: There is still no lighting, so it looks a bit rough, but the focus of the project was on optimizing rendering not making it beautiful
+Disclaimer: There is still no lighting, so it looks a bit rough, but the focus of the project was on optimizing rendering not making it beautiful :P.
 
 ## Things left to do
 

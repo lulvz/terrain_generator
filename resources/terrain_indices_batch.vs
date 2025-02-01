@@ -1,11 +1,12 @@
 #version 330 core
-layout(location = 0) in ivec2 vertexInfo;
+layout(location = 0) in int vertexInfo;
 uniform mat4 mvp;
 layout (std140) uniform ChunkData {
     vec3 wpos[2*2];
 };
 out vec3 fragPosition;
 out vec2 fragTexCoord;  // Added output for texture coordinates
+out vec3 fragNormal;
 
 const int gridSize = 64;
 const float atlasSize = 64;  // Total size of texture atlas in tiles per side
@@ -19,30 +20,30 @@ void main() {
     
     // Calculate vertex position and texture coordinates based on vertex position in quad
     if (vertexInQuad == 0) {
-        x = quadIndex % gridSize;
-        z = quadIndex / gridSize;
+        x = quadIndex / gridSize;
+        z = quadIndex % gridSize;
         texU = 0.0;
         texV = 0.0;
     } else if (vertexInQuad == 1) {
-        x = quadIndex % gridSize;
-        z = (quadIndex / gridSize) + 1;
+        x = (quadIndex / gridSize);
+        z = (quadIndex % gridSize) + 1;
         texU = 0.0;
         texV = 1.0;
     } else if (vertexInQuad == 2) {
-        x = (quadIndex % gridSize) + 1;
-        z = quadIndex / gridSize;
+        x = (quadIndex / gridSize) + 1;
+        z = (quadIndex % gridSize);
         texU = 1.0;
         texV = 0.0;
     } else {  // vertexInQuad == 3
-        x = (quadIndex % gridSize) + 1;
-        z = (quadIndex / gridSize) + 1;
+        x = (quadIndex / gridSize) + 1;
+        z = (quadIndex % gridSize) + 1;
         texU = 1.0;
         texV = 1.0;
     }
     
     // Unpack vertex information
     float heightf = float(vertexInfo & 0xFF);
-    float height_scaled = (heightf / 255.0) * 64.0;
+    float height_scaled = (heightf / 255.0) * 32.0; // max height of 32 units
     uint textureId = uint((vertexInfo >> 8) & 0xFFF);
     uint pitch = uint((vertexInfo >> 20) & 0x3F);
     uint yaw = uint((vertexInfo >> 26) & 0x3F);
@@ -50,6 +51,18 @@ void main() {
     // Calculate texture atlas coordinates
     float tileX = float(textureId % uint(atlasSize));
     float tileY = float(textureId / uint(atlasSize));
+
+    // calculate normal in radians
+    float pitchRad = radians(float(pitch) * (360.0 / 64.0));  // Assuming 6-bit precision
+    float yawRad = radians(float(yaw) * (360.0 / 64.0));      // Assuming 6-bit precision
+    vec3 normal;
+    // pass it to a vector
+    normal.x = cos(pitchRad) * sin(yawRad);
+    normal.y = sin(pitchRad);
+    normal.z = cos(pitchRad) * cos(yawRad);
+    normal = normalize(normal);
+
+    fragNormal = normal;
     
     // Calculate final texture coordinates
     vec2 tileOffset = vec2(tileX, tileY) * normalizedTextureSize;

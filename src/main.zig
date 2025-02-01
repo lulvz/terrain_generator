@@ -3,7 +3,7 @@ const rl = @import("rl.zig");
 
 const ChunkManager = @import("chunk_manager.zig").ChunkManager;
 
-const CHUNK_AMOUNT = 1;
+const CHUNK_AMOUNT = 3;
 
 fn drawAxisLines() void {
     const origin = rl.Vector3{ .x = 0.0, .y = 0.0, .z = 0.0 };
@@ -21,17 +21,20 @@ pub fn main() !void {
     defer rl.CloseWindow();
 
     var camera: rl.Camera3D = undefined;
-    camera.position = rl.Vector3{ .x = -24.0, .y = 21.0, .z = -24.0 }; // Position the camera
+    // camera.position = rl.Vector3{ .x = -24.0, .y = 21.0, .z = -24.0 }; // Position the camera
+    camera.position = rl.Vector3{ .x = -2.0, .y = 33.0, .z = -2.0 }; // Position the camera
     camera.target = rl.Vector3{ .x = 0.0, .y = 0.0, .z = 0.0 }; // Look at the origin
     camera.up = rl.Vector3{ .x = 0.0, .y = 1.0, .z = 0.0 }; // Set the up vector
-    camera.fovy = 10.0; // Field of view
-    camera.projection = rl.CAMERA_ORTHOGRAPHIC; // Set the camera type to orthographic
+    camera.fovy = 90.0; // Field of view
+    // camera.projection = rl.CAMERA_ORTHOGRAPHIC; // Set the camera type to orthographic
+    camera.projection = rl.CAMERA_PERSPECTIVE;
 
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
 
-    var chunk_manager: ChunkManager = try ChunkManager.init(allocator);
+    const CM =ChunkManager(CHUNK_AMOUNT*CHUNK_AMOUNT*4);
+    var chunk_manager: ChunkManager(CHUNK_AMOUNT*CHUNK_AMOUNT*4) = try CM.init(allocator, 12);
     defer chunk_manager.deinit();
 
     var x: i32 = -CHUNK_AMOUNT;
@@ -43,13 +46,12 @@ pub fn main() !void {
     }
     chunk_manager.bindData();
 
-    // const t = rl.LoadTexture("dirt.png");
-    
     // rl.SetTargetFPS(144);
+    rl.DisableCursor();
     while(!rl.WindowShouldClose()) {
         // UPDATE THINGS
-        rl.UpdateCamera(&camera, rl.CAMERA_ORBITAL);
-        rl.DisableCursor();
+        // rl.UpdateCamera(&camera, rl.CAMERA_ORBITAL);
+        rl.UpdateCamera(&camera, rl.CAMERA_FREE);
 
         // DRAW THINGS
         rl.BeginDrawing();
